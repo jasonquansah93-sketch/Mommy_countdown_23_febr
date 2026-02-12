@@ -1,0 +1,291 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ImageBackground,
+  TouchableOpacity,
+  TextInput,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { useProfile } from '../../context/ProfileContext';
+import { useDesign } from '../../context/DesignContext';
+import { getWeeksAndDays, getTimeUntilDue } from '../../utils/date';
+import { Ionicons } from '@expo/vector-icons';
+
+export default function DesignPreview() {
+  const { profile } = useProfile();
+  const { colors, design, setHeadlineText } = useDesign();
+  const { weeks, days } = getWeeksAndDays(profile.dueDate);
+  const time = getTimeUntilDue(profile.dueDate);
+
+  // State for inline text editing
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempText, setTempText] = useState(design.headlineText || 'Meeting you in...');
+
+  const genderLabel =
+    profile.gender === 'boy'
+      ? "IT'S A BOY"
+      : profile.gender === 'girl'
+        ? "IT'S A GIRL"
+        : "IT'S A SURPRISE";
+
+  // Font family indication - actual font loading handled elsewhere
+  // For now fonts are labeled but rendered with system fonts until Google Fonts are properly loaded
+  const fontFamily = undefined;
+
+  const handleEditStart = () => {
+    setTempText(design.headlineText || 'Meeting you in...');
+    setIsEditing(true);
+  };
+
+  const handleEditDone = () => {
+    setHeadlineText(tempText);
+    setIsEditing(false);
+  };
+
+  const cardContent = (
+    <View style={styles.inner}>
+      {/* Gender badge */}
+      <View style={[styles.genderBadge, { backgroundColor: colors.surface }]}>
+        <Text style={[styles.genderText, { color: colors.primary, fontFamily }]}>{genderLabel}</Text>
+      </View>
+
+      {/* Tappable headline text */}
+      <TouchableOpacity onPress={handleEditStart} activeOpacity={0.7}>
+        <View style={styles.headlineRow}>
+          <Text style={[styles.subtitle, { color: colors.text, fontFamily }]}>
+            {design.headlineText || 'Tap to edit...'}
+          </Text>
+          <Ionicons name="pencil" size={14} color={colors.textSecondary} style={styles.editIcon} />
+        </View>
+      </TouchableOpacity>
+
+      {/* Countdown row */}
+      <View style={styles.countdownRow}>
+        <View style={styles.unit}>
+          <Text style={[styles.number, { color: colors.primary, fontFamily }]}>
+            {String(weeks).padStart(2, '0')}
+          </Text>
+          <Text style={[styles.label, { fontFamily }]}>WEEKS</Text>
+        </View>
+        <View style={[styles.divider, { backgroundColor: colors.accent }]} />
+        <View style={styles.unit}>
+          <Text style={[styles.number, { color: colors.primary, fontFamily }]}>
+            {String(days).padStart(2, '0')}
+          </Text>
+          <Text style={[styles.label, { fontFamily }]}>DAYS</Text>
+        </View>
+        <View style={[styles.divider, { backgroundColor: colors.accent }]} />
+        <View style={styles.unit}>
+          <Text style={[styles.number, { color: colors.primary, fontFamily }]}>
+            {String(time.hours).padStart(2, '0')}
+          </Text>
+          <Text style={[styles.label, { fontFamily }]}>HOURS</Text>
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderCard = () => {
+    if (design.backgroundPhoto != null) {
+      return (
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <ImageBackground
+            source={{ uri: design.backgroundPhoto }}
+            style={styles.bg}
+            imageStyle={styles.bgImage}
+            blurRadius={design.blur}
+          >
+            <View style={styles.overlay} />
+            {cardContent}
+          </ImageBackground>
+        </View>
+      );
+    }
+
+    return (
+      <View style={[styles.card, { backgroundColor: colors.surface }]}>
+        <View style={styles.placeholderBg}>
+          <View style={[styles.overlay, { backgroundColor: 'rgba(255,220,230,0.3)' }]} />
+          {cardContent}
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <>
+      {renderCard()}
+
+      {/* Text editing modal */}
+      <Modal visible={isEditing} transparent animationType="fade">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={handleEditDone}
+          />
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit Headline</Text>
+            <TextInput
+              style={[styles.textInput, { fontFamily }]}
+              value={tempText}
+              onChangeText={setTempText}
+              placeholder="Enter headline text..."
+              placeholderTextColor="#AAA"
+              autoFocus
+              selectTextOnFocus
+              returnKeyType="done"
+              onSubmitEditing={handleEditDone}
+            />
+            <TouchableOpacity style={[styles.doneBtn, { backgroundColor: colors.primary }]} onPress={handleEditDone}>
+              <Text style={styles.doneBtnText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  bg: {
+    width: '100%',
+  },
+  bgImage: {
+    borderRadius: 20,
+    opacity: 0.5,
+  },
+  placeholderBg: {
+    width: '100%',
+    backgroundColor: '#FFF0F5',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+  },
+  inner: {
+    padding: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  genderBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginBottom: 24,
+  },
+  genderText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  headlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  subtitle: {
+    fontSize: 22,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  editIcon: {
+    marginLeft: 8,
+    opacity: 0.6,
+  },
+  countdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unit: {
+    alignItems: 'center',
+    minWidth: 70,
+  },
+  number: {
+    fontSize: 48,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.5,
+    color: '#888',
+    marginTop: 2,
+  },
+  divider: {
+    width: 1,
+    height: 48,
+    marginHorizontal: 16,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    width: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+    textAlign: 'center',
+    color: '#2D2D2D',
+  },
+  textInput: {
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 18,
+    color: '#2D2D2D',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  doneBtn: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  doneBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});
