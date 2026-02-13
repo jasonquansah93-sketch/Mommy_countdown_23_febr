@@ -1,25 +1,22 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useDesign } from '../../context/DesignContext';
-import { usePremium } from '../../context/PremiumContext';
 import { DESIGN_PRESETS } from '../../constants/presets';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function PresetsTab() {
   const { design, setPreset, colors } = useDesign();
-  const { isPremium } = usePremium();
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>PREMIUM PRESETS</Text>
+      <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>PRESETS</Text>
       <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
-        Complete looks with one tap
+        Complete looks with one tap. You can still customize colors, fonts, and filters manually.
       </Text>
 
       <View style={styles.grid}>
         {DESIGN_PRESETS.map((preset) => {
           const isSelected = design.presetId === preset.id;
-          const isLocked = preset.premium === true && isPremium !== true;
           return (
             <TouchableOpacity
               key={preset.id}
@@ -28,13 +25,13 @@ export default function PresetsTab() {
                 {
                   borderColor: isSelected ? colors.primary : colors.accent,
                   borderWidth: isSelected ? 2 : 1.5,
+                  backgroundColor: colors.surface,
                 },
               ]}
               activeOpacity={0.7}
-              onPress={() => {
-                if (isLocked) return;
-                setPreset(preset.id, preset.themeId, preset.fontFamily, preset.filter);
-              }}
+              onPress={() =>
+                setPreset(preset.id, preset.themeId, preset.fontFamily, preset.filter, preset.hideGenderLabel)
+              }
             >
               <View style={styles.presetContent}>
                 <Text style={[styles.presetName, { color: colors.text }]} numberOfLines={2}>
@@ -44,9 +41,6 @@ export default function PresetsTab() {
                   {preset.description}
                 </Text>
               </View>
-              {isLocked ? (
-                <Ionicons name="lock-closed" size={14} color={colors.textSecondary} style={styles.lockIcon} />
-              ) : null}
               {isSelected ? (
                 <Ionicons name="checkmark-circle" size={18} color={colors.primary} style={styles.checkIcon} />
               ) : null}
@@ -66,7 +60,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 1,
-    color: '#2D2D2D',
     marginBottom: 4,
   },
   sectionDesc: {
@@ -96,11 +89,6 @@ const styles = StyleSheet.create({
   },
   presetDesc: {
     fontSize: 13,
-  },
-  lockIcon: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
   },
   checkIcon: {
     position: 'absolute',

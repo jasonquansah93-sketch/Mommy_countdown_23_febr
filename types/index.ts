@@ -46,6 +46,7 @@ export interface DesignSettings {
   colors: ThemeColors;
   fontFamily: string;
   presetId: string | null;
+  hideGenderLabel?: boolean;
   backgroundPhoto: string | null; // URI
   filter: string;
   brightness: number;
@@ -63,4 +64,5 @@ export interface DesignPreset {
   fontFamily: string;
   filter: string;
   premium: boolean;
+  hideGenderLabel?: boolean;
 }

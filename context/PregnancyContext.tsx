@@ -142,7 +142,7 @@ export function PregnancyProvider({
         const loaded: Pregnancy[] = [];
         for (const m of meta) {
           const moments = await momentsStore.loadMoments(m.id);
-          const milestones = await milestonesStore.loadMilestones(m.id, m.dueDate);
+          const milestones = await milestonesStore.loadMilestones(m.id, m.dueDate ?? defaultDueDate.toISOString());
           const status: 'active' | 'archived' = m.status === 'archived' ? 'archived' : 'active';
           loaded.push({
             id: m.id,

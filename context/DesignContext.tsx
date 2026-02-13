@@ -5,11 +5,15 @@ import { loadJSON, saveJSON } from '../utils/storage';
 
 const STORAGE_KEY = 'mommy_design';
 
+const BASIC_THEME = THEMES.find((t) => t.id === 'basic');
+const DEFAULT_COLORS_OR_BASIC = BASIC_THEME?.colors ?? DEFAULT_COLORS;
+
 const DEFAULT_SETTINGS: DesignSettings = {
-  themeId: 'rose',
-  colors: DEFAULT_COLORS,
+  themeId: 'basic',
+  colors: DEFAULT_COLORS_OR_BASIC,
   fontFamily: 'Fredoka',
   presetId: null,
+  hideGenderLabel: true,
   backgroundPhoto: null,
   filter: 'none',
   brightness: 100,
@@ -24,7 +28,7 @@ interface DesignContextType {
   colors: ThemeColors;
   setTheme: (themeId: string) => void;
   setFont: (fontFamily: string) => void;
-  setPreset: (presetId: string, themeId: string, fontFamily: string, filter: string) => void;
+  setPreset: (presetId: string, themeId: string, fontFamily: string, filter: string, hideGenderLabel?: boolean) => void;
   setBackgroundPhoto: (uri: string | null) => void;
   setFilter: (filter: string) => void;
   setHeadlineText: (text: string) => void;
@@ -51,7 +55,11 @@ export function DesignProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     loadJSON<DesignSettings>(STORAGE_KEY).then((saved) => {
       if (saved) {
-        setDesign({ ...DEFAULT_SETTINGS, ...saved });
+        const merged = { ...DEFAULT_SETTINGS, ...saved };
+        if (saved.hideGenderLabel === undefined) {
+          merged.hideGenderLabel = saved.themeId === 'basic';
+        }
+        setDesign(merged);
       }
     });
   }, []);
@@ -71,11 +79,16 @@ export function DesignProvider({ children }: { children: React.ReactNode }) {
     persist({ ...design, fontFamily, presetId: null });
   }, [design, persist]);
 
-  const setPreset = useCallback((presetId: string, themeId: string, fontFamily: string, filter: string) => {
-    const theme = THEMES.find((t) => t.id === themeId);
-    if (!theme) return;
-    persist({ ...design, presetId, themeId, colors: theme.colors, fontFamily, filter });
-  }, [design, persist]);
+  const setPreset = useCallback(
+    (presetId: string, themeId: string, fontFamily: string, filter: string, hideGenderLabel?: boolean) => {
+      const theme = THEMES.find((t) => t.id === themeId);
+      if (!theme) return;
+      const next = { ...design, presetId, themeId, colors: theme.colors, fontFamily, filter };
+      next.hideGenderLabel = hideGenderLabel === true;
+      persist(next);
+    },
+    [design, persist]
+  );
 
   const setBackgroundPhoto = useCallback((uri: string | null) => {
     persist({ ...design, backgroundPhoto: uri });

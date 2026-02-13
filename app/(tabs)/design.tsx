@@ -22,13 +22,12 @@ export default function DesignScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[1]}
+        stickyHeaderIndices={[0]}
       >
-        {/* Hero preview */}
-        <DesignPreview />
-
-        {/* Sticky tab bar */}
-        <View style={[styles.tabBar, { backgroundColor: colors.background }]}>
+        {/* Sticky: preview + tab bar - stays visible when scrolling font/filter lists */}
+        <View style={[styles.stickyHeader, { backgroundColor: colors.background }]}>
+          <DesignPreview />
+          <View style={[styles.tabBar, { backgroundColor: colors.background }]}>
           <View style={styles.tabBarInner}>
             {TABS.map((tab, i) => {
               const isActive = activeTab === i;
@@ -59,6 +58,7 @@ export default function DesignScreen() {
             })}
           </View>
           <View style={[styles.tabDivider, { backgroundColor: colors.accent }]} />
+          </View>
         </View>
 
         {/* Tab content */}
@@ -80,6 +80,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 100,
+  },
+  stickyHeader: {
+    paddingBottom: 0,
   },
   tabBar: {
     paddingTop: 12,

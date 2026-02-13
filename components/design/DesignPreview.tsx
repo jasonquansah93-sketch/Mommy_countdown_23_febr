@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 import { useProfile } from '../../context/ProfileContext';
 import { useDesign } from '../../context/DesignContext';
 import { getWeeksAndDays, getTimeUntilDue } from '../../utils/date';
+import { getResolvedFontFamily } from '../../constants/fonts';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function DesignPreview() {
@@ -32,9 +33,8 @@ export default function DesignPreview() {
         ? "IT'S A GIRL"
         : "IT'S A SURPRISE";
 
-  // Font family indication - actual font loading handled elsewhere
-  // For now fonts are labeled but rendered with system fonts until Google Fonts are properly loaded
-  const fontFamily = undefined;
+  const displayFont = getResolvedFontFamily(design.fontFamily);
+  const showGenderBadge = !design.hideGenderLabel;
 
   const handleEditStart = () => {
     setTempText(design.headlineText || 'Meeting you in...');
@@ -48,68 +48,110 @@ export default function DesignPreview() {
 
   const cardContent = (
     <View style={styles.inner}>
-      {/* Gender badge */}
-      <View style={[styles.genderBadge, { backgroundColor: colors.surface }]}>
-        <Text style={[styles.genderText, { color: colors.primary, fontFamily }]}>{genderLabel}</Text>
-      </View>
+      {showGenderBadge && (
+        <View style={[styles.genderBadge, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.genderText, { color: colors.primary, fontFamily: displayFont }]}>
+            {genderLabel}
+          </Text>
+        </View>
+      )}
 
-      {/* Tappable headline text */}
       <TouchableOpacity onPress={handleEditStart} activeOpacity={0.7}>
-        <View style={styles.headlineRow}>
-          <Text style={[styles.subtitle, { color: colors.text, fontFamily }]}>
+        <View style={[styles.headlineRow, !showGenderBadge && { marginTop: 0 }]}>
+          <Text style={[styles.subtitle, { color: colors.text, fontFamily: displayFont }]}>
             {design.headlineText || 'Tap to edit...'}
           </Text>
           <Ionicons name="pencil" size={14} color={colors.textSecondary} style={styles.editIcon} />
         </View>
       </TouchableOpacity>
 
-      {/* Countdown row */}
       <View style={styles.countdownRow}>
         <View style={styles.unit}>
-          <Text style={[styles.number, { color: colors.primary, fontFamily }]}>
-            {String(weeks).padStart(2, '0')}
-          </Text>
-          <Text style={[styles.label, { fontFamily }]}>WEEKS</Text>
+          <Text style={[styles.number, { color: colors.primary }]}>{String(weeks).padStart(2, '0')}</Text>
+          <Text style={styles.label}>WEEKS</Text>
         </View>
         <View style={[styles.divider, { backgroundColor: colors.accent }]} />
         <View style={styles.unit}>
-          <Text style={[styles.number, { color: colors.primary, fontFamily }]}>
-            {String(days).padStart(2, '0')}
-          </Text>
-          <Text style={[styles.label, { fontFamily }]}>DAYS</Text>
+          <Text style={[styles.number, { color: colors.primary }]}>{String(days).padStart(2, '0')}</Text>
+          <Text style={styles.label}>DAYS</Text>
         </View>
         <View style={[styles.divider, { backgroundColor: colors.accent }]} />
         <View style={styles.unit}>
-          <Text style={[styles.number, { color: colors.primary, fontFamily }]}>
+          <Text style={[styles.number, { color: colors.primary }]}>
             {String(time.hours).padStart(2, '0')}
           </Text>
-          <Text style={[styles.label, { fontFamily }]}>HOURS</Text>
+          <Text style={styles.label}>HOURS</Text>
         </View>
       </View>
     </View>
   );
 
+  const b = design.brightness / 100;
+  const c = design.contrast / 100;
+  const s = design.saturation / 100;
+  const webFilterStyle = useMemo(() => {
+    if (Platform.OS === 'web') {
+      return { filter: `brightness(${b}) contrast(${c}) saturate(${s}) blur(${design.blur}px)` };
+    }
+    return undefined;
+  }, [b, c, s, design.blur]);
+
+  const brightnessOverlayOpacity = useMemo(() => {
+    if (Platform.OS !== 'web') {
+      const v = design.brightness;
+      if (v < 100) return (100 - v) / 100;
+      if (v > 100) return (v - 100) / 100;
+    }
+    return 0;
+  }, [design.brightness]);
+
   const renderCard = () => {
     if (design.backgroundPhoto != null) {
+      const imageLayer = (
+        <ImageBackground
+          source={{ uri: design.backgroundPhoto }}
+          style={styles.bg}
+          imageStyle={styles.bgImage}
+          blurRadius={Platform.OS === 'web' ? 0 : design.blur}
+        >
+          <View style={styles.overlay} />
+          {Platform.OS !== 'web' && brightnessOverlayOpacity > 0 && (
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                {
+                  backgroundColor:
+                    design.brightness < 100
+                      ? `rgba(0,0,0,${brightnessOverlayOpacity})`
+                      : `rgba(255,255,255,${brightnessOverlayOpacity})`,
+                },
+              ]}
+              pointerEvents="none"
+            />
+          )}
+          {Platform.OS === 'web' ? null : cardContent}
+        </ImageBackground>
+      );
       return (
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
-          <ImageBackground
-            source={{ uri: design.backgroundPhoto }}
-            style={styles.bg}
-            imageStyle={styles.bgImage}
-            blurRadius={design.blur}
-          >
-            <View style={styles.overlay} />
-            {cardContent}
-          </ImageBackground>
+          {Platform.OS === 'web' && webFilterStyle ? (
+            <>
+              <View style={[styles.bg, styles.bgFiltered, webFilterStyle]}>{imageLayer}</View>
+              <View style={styles.contentOverlay} pointerEvents="box-none">
+                {cardContent}
+              </View>
+            </>
+          ) : (
+            imageLayer
+          )}
         </View>
       );
     }
 
     return (
       <View style={[styles.card, { backgroundColor: colors.surface }]}>
-        <View style={styles.placeholderBg}>
-          <View style={[styles.overlay, { backgroundColor: 'rgba(255,220,230,0.3)' }]} />
+        <View style={[styles.placeholderBg, { backgroundColor: colors.background }]}>
+          <View style={[styles.overlay, { backgroundColor: 'rgba(255,255,255,0.4)' }]} />
           {cardContent}
         </View>
       </View>
@@ -134,7 +176,7 @@ export default function DesignPreview() {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Headline</Text>
             <TextInput
-              style={[styles.textInput, { fontFamily }]}
+              style={[styles.textInput, { fontFamily: displayFont }]}
               value={tempText}
               onChangeText={setTempText}
               placeholder="Enter headline text..."
@@ -169,13 +211,23 @@ const styles = StyleSheet.create({
   bg: {
     width: '100%',
   },
+  bgFiltered: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  contentOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+  },
   bgImage: {
     borderRadius: 20,
     opacity: 0.5,
   },
   placeholderBg: {
     width: '100%',
-    backgroundColor: '#FFF0F5',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,

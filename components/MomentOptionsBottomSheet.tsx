@@ -8,8 +8,12 @@ import {
   Animated,
   Pressable,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDesign } from '../context/DesignContext';
+
+const BORDER_COLOR = '#E5E5E5';
+const CORNER_RADIUS = 12;
+const BUTTON_PADDING = 16;
 
 interface MomentOptionsBottomSheetProps {
   visible: boolean;
@@ -25,6 +29,7 @@ export default function MomentOptionsBottomSheet({
   onDelete,
 }: MomentOptionsBottomSheetProps) {
   const { colors } = useDesign();
+  const insets = useSafeAreaInsets();
   const slideAnim = React.useRef(new Animated.Value(300)).current;
   const backdropAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -85,53 +90,40 @@ export default function MomentOptionsBottomSheet({
             styles.sheet,
             {
               backgroundColor: colors.surface,
+              paddingBottom: Math.max(insets.bottom, 24),
               transform: [{ translateY: slideAnim }],
             },
           ]}
         >
           <View style={[styles.handleBar, { backgroundColor: colors.textSecondary }]} />
-          <LinearGradient
-            colors={[colors.primary, colors.secondary]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.header}
-          >
-            <Text style={styles.headerTitle}>Moment Options</Text>
-          </LinearGradient>
-          <View style={[styles.optionsContent, { borderTopColor: colors.accent }]}>
+          <Text style={[styles.title, { color: colors.text }]}>Moment Options</Text>
+          <View style={styles.optionsContent}>
             <TouchableOpacity
-              style={[styles.optionBtn, styles.optionPrimary]}
+              style={[styles.optionBtn, { backgroundColor: '#FFFFFF', borderColor: BORDER_COLOR }]}
               onPress={() => {
                 onClose();
                 onEdit();
               }}
               activeOpacity={0.7}
             >
-              <LinearGradient
-                colors={[colors.primary, colors.secondary]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.optionGradient}
-              >
-                <Text style={styles.optionPrimaryText}>Edit Moment</Text>
-              </LinearGradient>
+              <Text style={[styles.optionText, { color: colors.text }]}>Edit Moment</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.optionBtn, styles.optionDestructive]}
+              style={[styles.optionBtn, { backgroundColor: '#FFFFFF', borderColor: BORDER_COLOR }]}
               onPress={() => {
                 onClose();
                 onDelete();
               }}
               activeOpacity={0.7}
             >
-              <Text style={styles.optionDestructiveText}>Delete Moment</Text>
+              <Text style={[styles.optionText, styles.optionDestructiveText]}>Delete Moment</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.optionBtn, styles.optionCancel, { borderColor: colors.accent }]}
+              style={[styles.optionBtn, styles.goBackBtn, { backgroundColor: '#FFFFFF', borderColor: BORDER_COLOR }]}
               onPress={onClose}
               activeOpacity={0.7}
             >
-              <Text style={[styles.optionCancelText, { color: colors.text }]}>Cancel</Text>
+              <Text style={[styles.optionText, { color: colors.text }]}>Go Back</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -153,7 +145,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
-    paddingBottom: 34,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.15,
@@ -168,61 +159,34 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 8,
   },
-  header: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
+  title: {
+    fontSize: 17,
+    fontWeight: '500',
     textAlign: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 20,
   },
   optionsContent: {
     paddingHorizontal: 20,
-    paddingTop: 24,
-    borderTopWidth: 1,
   },
   optionBtn: {
+    width: '100%',
+    paddingVertical: BUTTON_PADDING,
+    paddingHorizontal: 24,
+    borderRadius: CORNER_RADIUS,
+    borderWidth: 1,
+    alignItems: 'center',
     marginBottom: 12,
-    borderRadius: 16,
-    overflow: 'hidden',
   },
-  optionPrimary: {
-    overflow: 'hidden',
+  goBackBtn: {
+    marginTop: 8,
+    marginBottom: 0,
   },
-  optionGradient: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-  },
-  optionPrimaryText: {
-    color: '#FFFFFF',
+  optionText: {
     fontSize: 17,
-    fontWeight: '700',
-  },
-  optionDestructive: {
-    backgroundColor: 'transparent',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    alignItems: 'center',
+    fontWeight: '600',
   },
   optionDestructiveText: {
     color: '#E53935',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  optionCancel: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-  },
-  optionCancelText: {
-    fontSize: 17,
-    fontWeight: '600',
   },
 });

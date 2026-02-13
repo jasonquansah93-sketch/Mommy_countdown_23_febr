@@ -23,14 +23,17 @@ function isMilestone(item: unknown): item is Milestone {
 const LEGACY_KEY = (id: string) => `mommy_milestones_${id}`;
 
 export async function loadMilestones(pregnancyId: string, dueDate: string): Promise<Milestone[]> {
+  const safeDueDate = dueDate && !Number.isNaN(new Date(dueDate).getTime())
+    ? dueDate
+    : new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(); // fallback: ~6 months from now
   let raw = await loadJSON<unknown[]>(storageKey(pregnancyId));
   if ((!raw || !Array.isArray(raw)) && pregnancyId) {
     raw = await loadJSON<unknown[]>(LEGACY_KEY(pregnancyId));
   }
   if (!raw || !Array.isArray(raw)) {
-    return generateMilestones(dueDate);
+    return generateMilestones(safeDueDate);
   }
-  const filtered = raw.filter(isMilestone).map((m) => {
+  const stored = raw.filter(isMilestone).map((m) => {
     const o = m as unknown as Record<string, unknown>;
     return {
       id: String(o.id ?? ''),
@@ -40,8 +43,19 @@ export async function loadMilestones(pregnancyId: string, dueDate: string): Prom
       linkedMomentIds: Array.isArray(o.linkedMomentIds) ? o.linkedMomentIds : [],
     } as Milestone;
   });
-  if (filtered.length === 0) return generateMilestones(dueDate);
-  return filtered;
+  if (stored.length === 0) return generateMilestones(safeDueDate);
+  // Merge: add any missing milestones (e.g. final countdown) without duplicating
+  const fresh = generateMilestones(safeDueDate);
+  const storedById = new Map(stored.map((m) => [m.id, m]));
+  const merged = fresh.map((f) => storedById.get(f.id) ?? f);
+  return merged.sort((a, b) => {
+    const ta = new Date(a.milestoneDate).getTime();
+    const tb = new Date(b.milestoneDate).getTime();
+    if (Number.isNaN(ta) && Number.isNaN(tb)) return 0;
+    if (Number.isNaN(ta)) return 1;
+    if (Number.isNaN(tb)) return -1;
+    return ta - tb;
+  });
 }
 
 export async function saveMilestones(pregnancyId: string, milestones: Milestone[]): Promise<void> {

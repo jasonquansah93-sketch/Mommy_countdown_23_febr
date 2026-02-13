@@ -1,92 +1,91 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDesign } from '../../context/DesignContext';
 import { usePremium } from '../../context/PremiumContext';
+import { PRIMARY_FONTS, SCRIPT_FONTS, ELEGANT_FONTS } from '../../constants/presets';
 
-// Font definitions with style information for visual representation
 interface FontDef {
   name: string;
   premium: boolean;
-  style: 'normal' | 'script' | 'elegant';
 }
 
-const PRIMARY_FONTS: FontDef[] = [
-  { name: 'Fredoka', premium: false, style: 'normal' },
-  { name: 'Poppins', premium: false, style: 'normal' },
-  { name: 'Quicksand', premium: false, style: 'normal' },
-];
-
-const SCRIPT_FONTS: FontDef[] = [
-  { name: 'Dancing Script', premium: true, style: 'script' },
-  { name: 'Pacifico', premium: true, style: 'script' },
-  { name: 'Satisfy', premium: true, style: 'script' },
-  { name: 'Caveat', premium: true, style: 'script' },
-  // Additional script fonts
-  { name: 'Great Vibes', premium: true, style: 'script' },
-  { name: 'Tangerine', premium: true, style: 'script' },
-  { name: 'Allura', premium: true, style: 'script' },
-  { name: 'Pinyon Script', premium: true, style: 'script' },
-];
-
-const ELEGANT_FONTS: FontDef[] = [
-  { name: 'Playfair', premium: true, style: 'elegant' },
-  { name: 'Cormorant', premium: true, style: 'elegant' },
-  { name: 'Lora', premium: true, style: 'elegant' },
-  { name: 'Merriweather', premium: true, style: 'elegant' },
-  // Additional elegant fonts
-  { name: 'Libre Baskerville', premium: true, style: 'elegant' },
-  { name: 'Spectral', premium: true, style: 'elegant' },
-  { name: 'Crimson Text', premium: true, style: 'elegant' },
-  { name: 'EB Garamond', premium: true, style: 'elegant' },
-];
-
-interface FontPillProps {
-  font: FontDef;
-  isSelected: boolean;
-  isLocked: boolean;
-  primaryColor: string;
-  onPress: () => void;
+interface FontSectionProps {
+  title: string;
+  fonts: FontDef[];
+  designFont: string;
+  onSelect: (name: string, premium: boolean) => void;
+  colors: { primary: string; text: string; textSecondary: string };
+  isPremium: boolean;
+  defaultExpanded?: boolean;
 }
 
-function FontPill({ font, isSelected, isLocked, primaryColor, onPress }: FontPillProps) {
-  // Determine visual style based on font category
-  // This visually indicates the font style until actual fonts are loaded
-  const getFontStyle = (): TextStyle => {
-    switch (font.style) {
-      case 'script':
-        return { fontStyle: 'italic', fontWeight: '400' };
-      case 'elegant':
-        return { fontWeight: '300', letterSpacing: 1 };
-      default:
-        return { fontWeight: '600' };
-    }
-  };
+function FontSection({
+  title,
+  fonts,
+  designFont,
+  onSelect,
+  colors,
+  isPremium,
+  defaultExpanded = true,
+}: FontSectionProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   return (
-    <TouchableOpacity
-      style={[
-        styles.pill,
-        isSelected
-          ? { backgroundColor: primaryColor, borderColor: primaryColor }
-          : { backgroundColor: '#FFFFFF', borderColor: '#E0E0E0' },
-      ]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <Text
-        style={[
-          styles.pillText,
-          getFontStyle(),
-          { color: isSelected ? '#FFFFFF' : '#2D2D2D' },
-        ]}
+    <View style={[styles.section, { borderBottomColor: colors.textSecondary + '30' }]}>
+      <TouchableOpacity
+        style={styles.sectionHeader}
+        onPress={() => setExpanded((e) => !e)}
+        activeOpacity={0.7}
       >
-        {font.name}
-      </Text>
-      {isLocked ? (
-        <Ionicons name="lock-closed" size={12} color={isSelected ? '#FFF' : '#AAA'} style={styles.lockIcon} />
-      ) : null}
-    </TouchableOpacity>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
+        <Ionicons
+          name={expanded ? 'chevron-up' : 'chevron-down'}
+          size={20}
+          color={colors.textSecondary}
+        />
+      </TouchableOpacity>
+      {expanded && (
+        <View style={styles.pillRow}>
+          {fonts.map((f) => {
+            const isSelected = designFont === f.name;
+            const isLocked = f.premium && !isPremium;
+            return (
+              <TouchableOpacity
+                key={f.name}
+                style={[
+                  styles.pill,
+                  isSelected
+                    ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                    : { backgroundColor: '#FFFFFF', borderColor: '#E0E0E0' },
+                ]}
+                onPress={() => onSelect(f.name, f.premium)}
+                activeOpacity={0.7}
+                disabled={isLocked}
+              >
+                <Text
+                  style={[
+                    styles.pillText,
+                    { color: isSelected ? '#FFFFFF' : colors.text },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {f.name}
+                </Text>
+                {isLocked ? (
+                  <Ionicons
+                    name="lock-closed"
+                    size={12}
+                    color={isSelected ? '#FFF' : '#AAA'}
+                    style={styles.lockIcon}
+                  />
+                ) : null}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -94,71 +93,50 @@ export default function TypographyTab() {
   const { design, setFont, colors } = useDesign();
   const { isPremium } = usePremium();
 
-  const handleSelect = (name: string, premium: boolean) => {
-    if (premium === true && isPremium !== true) return;
-    setFont(name);
-  };
+  const handleSelect = useCallback(
+    (name: string, premium: boolean) => {
+      if (premium && !isPremium) return;
+      setFont(name);
+    },
+    [setFont, isPremium]
+  );
 
   return (
     <View style={styles.container}>
-      {/* Primary fonts */}
-      <Text style={styles.sectionTitle}>TYPOGRAPHY</Text>
-      <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
-        Tap a font to apply it instantly
+      <Text style={[styles.introTitle, { color: colors.textSecondary }]}>TYPOGRAPHY</Text>
+      <Text style={[styles.introDesc, { color: colors.textSecondary }]}>
+        Tap a font to apply it instantly. The preview above updates in real time.
       </Text>
-      <View style={styles.pillRow}>
-        {PRIMARY_FONTS.map((f) => (
-          <FontPill
-            key={f.name}
-            font={f}
-            isSelected={design.fontFamily === f.name}
-            isLocked={false}
-            primaryColor={colors.primary}
-            onPress={() => handleSelect(f.name, f.premium)}
-          />
-        ))}
-      </View>
 
-      <View style={[styles.divider, { backgroundColor: colors.accent }]} />
+      <FontSection
+        title="Sans Serif"
+        fonts={PRIMARY_FONTS.map((f) => ({ name: f.name, premium: f.premium }))}
+        designFont={design.fontFamily}
+        onSelect={handleSelect}
+        colors={colors}
+        isPremium={isPremium ?? false}
+        defaultExpanded={true}
+      />
 
-      {/* Premium styles header */}
-      <Text style={styles.premiumTitle}>Premium Styles</Text>
+      <FontSection
+        title="Script"
+        fonts={SCRIPT_FONTS.map((f) => ({ name: f.name, premium: f.premium }))}
+        designFont={design.fontFamily}
+        onSelect={handleSelect}
+        colors={colors}
+        isPremium={isPremium ?? false}
+        defaultExpanded={false}
+      />
 
-      {/* Script fonts */}
-      <Text style={styles.categoryLabel}>SCRIPT</Text>
-      <Text style={[styles.categoryDesc, { color: colors.textSecondary }]}>
-        Flowing, handwritten elegance
-      </Text>
-      <View style={styles.pillRow}>
-        {SCRIPT_FONTS.map((f) => (
-          <FontPill
-            key={f.name}
-            font={f}
-            isSelected={design.fontFamily === f.name}
-            isLocked={f.premium === true && isPremium !== true}
-            primaryColor={colors.primary}
-            onPress={() => handleSelect(f.name, f.premium)}
-          />
-        ))}
-      </View>
-
-      {/* Elegant fonts */}
-      <Text style={styles.categoryLabel}>ELEGANT</Text>
-      <Text style={[styles.categoryDesc, { color: colors.textSecondary }]}>
-        Sophisticated serif designs
-      </Text>
-      <View style={styles.pillRow}>
-        {ELEGANT_FONTS.map((f) => (
-          <FontPill
-            key={f.name}
-            font={f}
-            isSelected={design.fontFamily === f.name}
-            isLocked={f.premium === true && isPremium !== true}
-            primaryColor={colors.primary}
-            onPress={() => handleSelect(f.name, f.premium)}
-          />
-        ))}
-      </View>
+      <FontSection
+        title="Elegant Serif"
+        fonts={ELEGANT_FONTS.map((f) => ({ name: f.name, premium: f.premium }))}
+        designFont={design.fontFamily}
+        onSelect={handleSelect}
+        colors={colors}
+        isPremium={isPremium ?? false}
+        defaultExpanded={false}
+      />
     </View>
   );
 }
@@ -167,22 +145,36 @@ const styles = StyleSheet.create({
   container: {
     padding: 16,
   },
-  sectionTitle: {
+  introTitle: {
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 1,
-    color: '#2D2D2D',
     marginBottom: 4,
   },
-  sectionDesc: {
+  introDesc: {
     fontSize: 13,
-    marginBottom: 12,
+    marginBottom: 20,
+  },
+  section: {
+    borderBottomWidth: 1,
+    paddingBottom: 16,
+    marginBottom: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
   },
   pillRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 12,
+    marginTop: 8,
   },
   pill: {
     flexDirection: 'row',
@@ -194,30 +186,9 @@ const styles = StyleSheet.create({
   },
   pillText: {
     fontSize: 14,
+    fontWeight: '500',
   },
   lockIcon: {
     marginLeft: 6,
-  },
-  divider: {
-    height: 1,
-    marginVertical: 16,
-  },
-  premiumTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2D2D2D',
-    marginBottom: 14,
-  },
-  categoryLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
-    color: '#666',
-    marginBottom: 4,
-    marginTop: 4,
-  },
-  categoryDesc: {
-    fontSize: 11,
-    marginBottom: 8,
   },
 });

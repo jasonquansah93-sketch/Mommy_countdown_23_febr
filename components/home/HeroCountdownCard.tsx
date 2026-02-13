@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useProfile } from '../../context/ProfileContext';
 import { useDesign } from '../../context/DesignContext';
+import { getResolvedFontFamily } from '../../constants/fonts';
 import { usePremium } from '../../context/PremiumContext';
 import { getWeeksAndDays, getTimeUntilDueMs } from '../../utils/date';
 import GradientButton from './GradientButton';
@@ -55,6 +56,8 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
 
   const genderColor =
     profile.gender === 'boy' ? '#4FC3F7' : colors.primary;
+  const displayFont = getResolvedFontFamily(design.fontFamily);
+  const showGenderBadge = !design.hideGenderLabel;
 
   const handleShare = () => {
     const msg = `Only ${weeks} weeks and ${days} days until we meet our baby! 💕`;
@@ -81,9 +84,13 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
 
       {/* Top row: gender badge + premium + edit */}
       <View style={styles.topRow}>
-        <View style={styles.genderBadge}>
-          <Text style={[styles.genderText, { color: genderColor }]}>{genderLabel}</Text>
-        </View>
+        {showGenderBadge && (
+          <View style={styles.genderBadge}>
+            <Text style={[styles.genderText, { color: genderColor, fontFamily: displayFont }]}>
+              {genderLabel}
+            </Text>
+          </View>
+        )}
         <View style={styles.topRight}>
           {isPremium === true && (
             <View style={styles.premiumBadge}>
@@ -121,7 +128,7 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
       {/* STATE B: Countdown running */}
       {countdownStarted && (
         <>
-          <Text style={[styles.subtitle, { color: colors.text }]}>
+          <Text style={[styles.subtitle, { color: colors.text, fontFamily: displayFont }]}>
             Counting down to meet you...
           </Text>
 
@@ -203,15 +210,38 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
     </View>
   );
 
+  const blurVal = hasCustomBg ? (design.blur > 0 ? design.blur : 8) : 4;
+  const brightnessOverlayOpacity = hasCustomBg
+    ? design.brightness < 100
+      ? (100 - design.brightness) / 100
+      : design.brightness > 100
+        ? (design.brightness - 100) / 100
+        : 0
+    : 0;
+
   return (
     <View style={[styles.card, { backgroundColor: colors.surface }]}>
       <ImageBackground
         source={bgSource}
         style={styles.bgFill}
         imageStyle={styles.bgImageRadius}
-        blurRadius={hasCustomBg ? (design.blur > 0 ? design.blur : 8) : 4}
+        blurRadius={blurVal}
         resizeMode="cover"
       >
+        {hasCustomBg && brightnessOverlayOpacity > 0 && (
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                backgroundColor:
+                  design.brightness < 100
+                    ? `rgba(0,0,0,${brightnessOverlayOpacity})`
+                    : `rgba(255,255,255,${brightnessOverlayOpacity})`,
+              },
+            ]}
+            pointerEvents="none"
+          />
+        )}
         {cardInner}
       </ImageBackground>
     </View>

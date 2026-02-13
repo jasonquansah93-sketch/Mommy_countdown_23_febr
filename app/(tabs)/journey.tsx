@@ -8,14 +8,14 @@ import {
   FlatList,
   Image,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useDesign } from '../../context/DesignContext';
 import { useRouter } from 'expo-router';
 import { usePregnancy } from '../../context/PregnancyContext';
 import { useProfile } from '../../context/ProfileContext';
 import { Moment, Milestone } from '../../types/pregnancy';
-import { formatDateLabel } from '../../utils/date';
-import { getDaysRemaining } from '../../utils/date';
+import { formatDateLabel, getDaysRemaining, getMilestoneDateState } from '../../utils/date';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function JourneyScreen() {
@@ -91,41 +91,90 @@ export default function JourneyScreen() {
     [colors]
   );
 
+  /** Emphasis level for final countdown milestones (by title). */
+  const getMilestoneEmphasis = useCallback((title: string): 'normal' | 'subtle' | 'strong' | 'celebratory' | 'due-date' => {
+    if (title.includes('Due Date')) return 'due-date';
+    if (title.includes('1 Day to Go')) return 'celebratory';
+    if (title.includes('5 Days to Go')) return 'strong';
+    if (title.includes('10 Days to Go')) return 'subtle';
+    return 'normal';
+  }, []);
+
   const renderMilestoneItem = useCallback(
     ({ item }: { item: Milestone }) => {
       const hasLinked =
         (item.linkedMomentIds?.length ?? 0) > 0 ||
         (currentPregnancy?.moments.some((mom) => mom.type === 'moment' && mom.linkedMilestoneId === item.id) ?? false);
+      const dateState = getMilestoneDateState(item.milestoneDate);
+      const emphasis = getMilestoneEmphasis(item.title);
+
+      const isCompleted = dateState === 'past';
+      const isToday = dateState === 'today';
+
+      let entryStyle = { borderBottomColor: colors.accent };
+      let circleBg = hasLinked ? colors.primary : colors.textSecondary;
+      let titleStyle = { color: colors.text };
+      let bgStyle = undefined;
+
+      if (isCompleted) {
+        entryStyle = { ...entryStyle, opacity: 0.7 };
+        titleStyle = { ...titleStyle, opacity: 0.85 };
+      } else if (isToday) {
+        bgStyle = { backgroundColor: colors.primary + '15' };
+        titleStyle = { ...titleStyle, fontWeight: '800' as const };
+      }
+
+      if (emphasis === 'subtle' && !isCompleted) {
+        titleStyle = { ...titleStyle, fontWeight: '700' as const };
+      } else if (emphasis === 'strong' && !isCompleted) {
+        entryStyle = { ...entryStyle, borderLeftWidth: 4, borderLeftColor: colors.primary };
+        titleStyle = { ...titleStyle, fontWeight: '800' as const };
+      } else if (emphasis === 'celebratory' && !isCompleted) {
+        entryStyle = { ...entryStyle, borderLeftWidth: 4, borderLeftColor: colors.accent };
+        titleStyle = { ...titleStyle, fontWeight: '800' as const, color: colors.primary };
+        bgStyle = bgStyle ?? { backgroundColor: colors.primary + '12' };
+      } else if (emphasis === 'due-date' && !isCompleted) {
+        circleBg = colors.accent;
+        titleStyle = { ...titleStyle, fontWeight: '800' as const, color: colors.accent };
+        bgStyle = bgStyle ?? { backgroundColor: colors.accent + '18' };
+      }
+
       return (
-      <TouchableOpacity
-        style={[
-          styles.milestoneEntry,
-          { borderBottomColor: colors.accent },
-        ]}
-        onPress={() => handleMilestonePress(item.id)}
-        activeOpacity={0.7}
-      >
-        <View
+        <TouchableOpacity
           style={[
-            styles.milestoneCircle,
-            hasLinked ? { backgroundColor: colors.primary } : { backgroundColor: colors.textSecondary },
+            styles.milestoneEntry,
+            entryStyle,
+            bgStyle,
           ]}
-        />
-        <View style={styles.milestoneContent}>
-          <Text style={[styles.milestoneTitle, { color: colors.text }]}>
-            {item.title}
-          </Text>
-          <Text style={[styles.milestoneDate, { color: colors.textSecondary }]}>
-            {formatDateLabel(item.milestoneDate)}
-          </Text>
-          <Text style={[styles.milestoneAdd, { color: colors.textSecondary }]}>
-            Add a memory
-          </Text>
-        </View>
-      </TouchableOpacity>
+          onPress={() => handleMilestonePress(item.id)}
+          activeOpacity={0.7}
+        >
+          <View
+            style={[
+              styles.milestoneCircle,
+              { backgroundColor: circleBg },
+              emphasis === 'due-date' && !isCompleted && { justifyContent: 'center', alignItems: 'center' },
+            ]}
+          >
+            {emphasis === 'due-date' && !isCompleted && (
+              <Ionicons name="balloon" size={24} color="#FFFFFF" />
+            )}
+          </View>
+          <View style={styles.milestoneContent}>
+            <Text style={[styles.milestoneTitle, titleStyle]}>
+              {item.title}
+            </Text>
+            <Text style={[styles.milestoneDate, { color: colors.textSecondary }]}>
+              {formatDateLabel(item.milestoneDate)}
+            </Text>
+            <Text style={[styles.milestoneAdd, { color: colors.textSecondary }]}>
+              Add a memory
+            </Text>
+          </View>
+        </TouchableOpacity>
       );
     },
-    [colors, currentPregnancy]
+    [colors, currentPregnancy, getMilestoneEmphasis]
   );
 
   if (!isLoaded) {

@@ -16,11 +16,22 @@ export const MILESTONE_TEMPLATES: { daysBeforeDue: number; title: string }[] = [
   { daysBeforeDue: 50, title: '50 Days to Go' },
   { daysBeforeDue: 30, title: '30 Days to Go' },
   { daysBeforeDue: 21, title: '3 Weeks to Go' },
+  // Final countdown milestones
+  { daysBeforeDue: 10, title: '10 Days to Go' },
+  { daysBeforeDue: 5, title: '5 Days to Go' },
+  { daysBeforeDue: 3, title: '3 Days to Go' },
+  { daysBeforeDue: 1, title: '1 Day to Go' },
+  { daysBeforeDue: 0, title: 'Due Date 🎉' },
 ];
 
 /** Only populates milestones[]. NEVER creates a Moment. NEVER touches moments[]. */
 export function generateMilestones(dueDate: string): Milestone[] {
   const due = new Date(dueDate);
+  if (Number.isNaN(due.getTime())) {
+    const fallback = new Date();
+    fallback.setMonth(fallback.getMonth() + 6);
+    return generateMilestones(fallback.toISOString());
+  }
 
   return MILESTONE_TEMPLATES.map((tpl, index) => {
     const milestoneDate = addDays(due, -tpl.daysBeforeDue);

@@ -79,7 +79,9 @@ export function formatDateShort(dateStr: string): string {
 }
 
 export function formatDateLabel(dateStr: string): string {
+  if (!dateStr) return '--';
   const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return '--';
   return d.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -88,12 +90,28 @@ export function formatDateLabel(dateStr: string): string {
 }
 
 export function getJourneyProgress(startDate: string, dueDate: string): number {
+  if (!startDate || !dueDate) return 0;
   const start = new Date(startDate).getTime();
   const due = new Date(dueDate).getTime();
+  if (Number.isNaN(start) || Number.isNaN(due) || due <= start) return 0;
   const now = Date.now();
   if (now >= due) return 100;
   if (now <= start) return 0;
   return Math.round(((now - start) / (due - start)) * 100);
+}
+
+/** Returns whether a milestone date is in the past, today, or future. */
+export function getMilestoneDateState(dateStr: string): 'past' | 'today' | 'future' {
+  if (!dateStr) return 'future';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return 'future';
+  const now = new Date();
+  const dayStart = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const ms = dayStart(d);
+  const today = dayStart(now);
+  if (ms < today) return 'past';
+  if (ms > today) return 'future';
+  return 'today';
 }
 
 export function getTimeUntilDueMs(dueDate: string): {

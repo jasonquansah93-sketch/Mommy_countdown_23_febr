@@ -7,7 +7,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 const TAB_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   index: 'hourglass',
-  journey: 'leaf',
+  journey: 'footsteps',
   design: 'color-palette',
   profile: 'person',
 };
