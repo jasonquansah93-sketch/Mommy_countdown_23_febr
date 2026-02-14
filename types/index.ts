@@ -41,6 +41,8 @@ export interface AppTheme {
   colors: ThemeColors;
 }
 
+export type TextColorMode = 'auto' | 'light' | 'dark' | 'custom';
+
 export interface DesignSettings {
   themeId: string;
   colors: ThemeColors;
@@ -54,6 +56,8 @@ export interface DesignSettings {
   saturation: number;
   blur: number;
   headlineText: string; // Editable headline text for preview
+  textColorMode?: TextColorMode;
+  customTextColor?: string;
 }
 
 export interface DesignPreset {

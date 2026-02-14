@@ -14,6 +14,7 @@ import { useProfile } from '../../context/ProfileContext';
 import { useDesign } from '../../context/DesignContext';
 import { getWeeksAndDays, getTimeUntilDue } from '../../utils/date';
 import { getResolvedFontFamily } from '../../constants/fonts';
+import { getContrastingTextColor } from '../../utils/contrast';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function DesignPreview() {
@@ -36,6 +37,11 @@ export default function DesignPreview() {
   const displayFont = getResolvedFontFamily(design.fontFamily);
   const showGenderBadge = !design.hideGenderLabel;
 
+  const mode = design.textColorMode ?? 'auto';
+  const customColor = design.customTextColor;
+  const badgeTextColor = getContrastingTextColor(colors.surface, mode, customColor);
+  const contentTextColor = getContrastingTextColor(colors.background, mode, customColor);
+
   const handleEditStart = () => {
     setTempText(design.headlineText || 'Meeting you in...');
     setIsEditing(true);
@@ -50,7 +56,7 @@ export default function DesignPreview() {
     <View style={styles.inner}>
       {showGenderBadge && (
         <View style={[styles.genderBadge, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.genderText, { color: colors.primary, fontFamily: displayFont }]}>
+          <Text style={[styles.genderText, { color: badgeTextColor, fontFamily: displayFont }]}>
             {genderLabel}
           </Text>
         </View>
@@ -58,29 +64,29 @@ export default function DesignPreview() {
 
       <TouchableOpacity onPress={handleEditStart} activeOpacity={0.7}>
         <View style={[styles.headlineRow, !showGenderBadge && { marginTop: 0 }]}>
-          <Text style={[styles.subtitle, { color: colors.text, fontFamily: displayFont }]}>
+          <Text style={[styles.subtitle, { color: contentTextColor, fontFamily: displayFont }]}>
             {design.headlineText || 'Tap to edit...'}
           </Text>
-          <Ionicons name="pencil" size={14} color={colors.textSecondary} style={styles.editIcon} />
+          <Ionicons name="pencil" size={14} color={contentTextColor} style={[styles.editIcon, { opacity: 0.8 }]} />
         </View>
       </TouchableOpacity>
 
       <View style={styles.countdownRow}>
         <View style={styles.unit}>
-          <Text style={[styles.number, { color: colors.primary }]}>{String(weeks).padStart(2, '0')}</Text>
-          <Text style={styles.label}>WEEKS</Text>
+          <Text style={[styles.number, { color: contentTextColor }]}>{String(weeks).padStart(2, '0')}</Text>
+          <Text style={[styles.label, { color: contentTextColor }]}>WEEKS</Text>
         </View>
         <View style={[styles.divider, { backgroundColor: colors.accent }]} />
         <View style={styles.unit}>
-          <Text style={[styles.number, { color: colors.primary }]}>{String(days).padStart(2, '0')}</Text>
-          <Text style={styles.label}>DAYS</Text>
+          <Text style={[styles.number, { color: contentTextColor }]}>{String(days).padStart(2, '0')}</Text>
+          <Text style={[styles.label, { color: contentTextColor }]}>DAYS</Text>
         </View>
         <View style={[styles.divider, { backgroundColor: colors.accent }]} />
         <View style={styles.unit}>
-          <Text style={[styles.number, { color: colors.primary }]}>
+          <Text style={[styles.number, { color: contentTextColor }]}>
             {String(time.hours).padStart(2, '0')}
           </Text>
-          <Text style={styles.label}>HOURS</Text>
+          <Text style={[styles.label, { color: contentTextColor }]}>HOURS</Text>
         </View>
       </View>
     </View>

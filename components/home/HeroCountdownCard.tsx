@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useProfile } from '../../context/ProfileContext';
 import { useDesign } from '../../context/DesignContext';
 import { getResolvedFontFamily } from '../../constants/fonts';
+import { getContrastingTextColor } from '../../utils/contrast';
 import { usePremium } from '../../context/PremiumContext';
 import { getWeeksAndDays, getTimeUntilDueMs } from '../../utils/date';
 import GradientButton from './GradientButton';
@@ -54,10 +55,15 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
         ? "IT'S A GIRL"
         : "IT'S A SURPRISE";
 
-  const genderColor =
-    profile.gender === 'boy' ? '#4FC3F7' : colors.primary;
   const displayFont = getResolvedFontFamily(design.fontFamily);
   const showGenderBadge = !design.hideGenderLabel;
+
+  const mode = design.textColorMode ?? 'auto';
+  const customColor = design.customTextColor;
+  const badgeBg = '#FFFFFF';
+  const contentBg = colors.background;
+  const badgeTextColor = getContrastingTextColor(badgeBg, mode, customColor);
+  const contentTextColor = getContrastingTextColor(contentBg, mode, customColor);
 
   const handleShare = () => {
     const msg = `Only ${weeks} weeks and ${days} days until we meet our baby! 💕`;
@@ -86,7 +92,7 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
       <View style={styles.topRow}>
         {showGenderBadge && (
           <View style={styles.genderBadge}>
-            <Text style={[styles.genderText, { color: genderColor, fontFamily: displayFont }]}>
+            <Text style={[styles.genderText, { color: badgeTextColor, fontFamily: displayFont }]}>
               {genderLabel}
             </Text>
           </View>
@@ -103,7 +109,7 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
             onPress={() => router.push('/(tabs)/design')}
             activeOpacity={0.7}
           >
-            <Ionicons name="pencil" size={16} color={colors.primary} />
+            <Ionicons name="pencil" size={16} color={contentTextColor} />
           </TouchableOpacity>
         </View>
       </View>
@@ -111,10 +117,10 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
       {/* STATE A: Not started */}
       {!countdownStarted && (
         <View style={styles.notStartedContent}>
-          <Text style={[styles.notStartedTitle, { color: colors.text }]}>
+          <Text style={[styles.notStartedTitle, { color: contentTextColor }]}>
             Ready to start?
           </Text>
-          <Text style={[styles.notStartedSub, { color: colors.textSecondary }]}>
+          <Text style={[styles.notStartedSub, { color: contentTextColor, opacity: 0.85 }]}>
             Set your dates and begin counting down
           </Text>
           <GradientButton
@@ -128,7 +134,7 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
       {/* STATE B: Countdown running */}
       {countdownStarted && (
         <>
-          <Text style={[styles.subtitle, { color: colors.text, fontFamily: displayFont }]}>
+          <Text style={[styles.subtitle, { color: contentTextColor, fontFamily: displayFont }]}>
             Counting down to meet you...
           </Text>
 
@@ -142,20 +148,20 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
               <>
                 {/* Primary: WEEKS | DAYS | HOURS */}
                 <View style={styles.primaryRow}>
-                  <CountUnit value={String(weeks).padStart(2, '0')} label="WEEKS" color={colors.primary} />
+                  <CountUnit value={String(weeks).padStart(2, '0')} label="WEEKS" color={contentTextColor} />
                   <View style={[styles.divider, { backgroundColor: colors.accent }]} />
-                  <CountUnit value={String(days).padStart(2, '0')} label="DAYS" color={colors.primary} />
+                  <CountUnit value={String(days).padStart(2, '0')} label="DAYS" color={contentTextColor} />
                   <View style={[styles.divider, { backgroundColor: colors.accent }]} />
-                  <CountUnit value={String(time.hours).padStart(2, '0')} label="HOURS" color={colors.primary} />
+                  <CountUnit value={String(time.hours).padStart(2, '0')} label="HOURS" color={contentTextColor} />
                 </View>
 
                 {/* Secondary pill: MIN : SEC : MS */}
                 <View style={[styles.secondaryPill, { backgroundColor: colors.background }]}>
-                  <SmallUnit value={String(time.minutes).padStart(2, '0')} label="MIN" color={colors.primary} />
-                  <Text style={[styles.colon, { color: colors.primary }]}>:</Text>
-                  <SmallUnit value={String(time.seconds).padStart(2, '0')} label="SEC" color={colors.primary} />
-                  <Text style={[styles.colon, { color: colors.primary }]}>:</Text>
-                  <SmallUnit value={String(time.ms).padStart(2, '0')} label="MS" color={colors.textSecondary} />
+                  <SmallUnit value={String(time.minutes).padStart(2, '0')} label="MIN" color={contentTextColor} />
+                  <Text style={[styles.colon, { color: contentTextColor }]}>:</Text>
+                  <SmallUnit value={String(time.seconds).padStart(2, '0')} label="SEC" color={contentTextColor} />
+                  <Text style={[styles.colon, { color: contentTextColor }]}>:</Text>
+                  <SmallUnit value={String(time.ms).padStart(2, '0')} label="MS" color={contentTextColor} style={{ opacity: 0.8 }} />
                 </View>
               </>
             ) : (
@@ -165,29 +171,29 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
                   <CountUnit
                     value={String(time.totalMinutes).padStart(2, '0')}
                     label="MINUTES"
-                    color={colors.primary}
+                    color={contentTextColor}
                   />
                   <View style={[styles.divider, { backgroundColor: colors.accent }]} />
                   <CountUnit
                     value={String(time.seconds).padStart(2, '0')}
                     label="SECONDS"
-                    color={colors.primary}
+                    color={contentTextColor}
                   />
                   <View style={[styles.divider, { backgroundColor: colors.accent }]} />
                   <CountUnit
                     value={String(time.ms).padStart(2, '0')}
                     label="MS"
-                    color={colors.primary}
+                    color={contentTextColor}
                   />
                 </View>
 
                 {/* Secondary: Weeks/Days/Hours */}
                 <View style={[styles.secondaryPill, { backgroundColor: colors.background }]}>
-                  <SmallUnit value={String(weeks).padStart(2, '0')} label="WKS" color={colors.primary} />
-                  <Text style={[styles.colon, { color: colors.primary }]}>:</Text>
-                  <SmallUnit value={String(days).padStart(2, '0')} label="DAYS" color={colors.primary} />
-                  <Text style={[styles.colon, { color: colors.primary }]}>:</Text>
-                  <SmallUnit value={String(time.hours).padStart(2, '0')} label="HRS" color={colors.textSecondary} />
+                  <SmallUnit value={String(weeks).padStart(2, '0')} label="WKS" color={contentTextColor} />
+                  <Text style={[styles.colon, { color: contentTextColor }]}>:</Text>
+                  <SmallUnit value={String(days).padStart(2, '0')} label="DAYS" color={contentTextColor} />
+                  <Text style={[styles.colon, { color: contentTextColor }]}>:</Text>
+                  <SmallUnit value={String(time.hours).padStart(2, '0')} label="HRS" color={contentTextColor} style={{ opacity: 0.8 }} />
                 </View>
               </>
             )}
@@ -252,16 +258,26 @@ function CountUnit({ value, label, color }: { value: string; label: string; colo
   return (
     <View style={styles.cBlock}>
       <Text style={[styles.cValue, { color }]}>{value}</Text>
-      <Text style={styles.cLabel}>{label}</Text>
+      <Text style={[styles.cLabel, { color }]}>{label}</Text>
     </View>
   );
 }
 
-function SmallUnit({ value, label, color }: { value: string; label: string; color: string }) {
+function SmallUnit({
+  value,
+  label,
+  color,
+  style,
+}: {
+  value: string;
+  label: string;
+  color: string;
+  style?: object;
+}) {
   return (
     <View style={styles.sBlock}>
       <Text style={[styles.sValue, { color }]}>{value}</Text>
-      <Text style={styles.sLabel}>{label}</Text>
+      <Text style={[styles.sLabel, { color }, style]}>{label}</Text>
     </View>
   );
 }

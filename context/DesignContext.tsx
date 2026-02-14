@@ -21,6 +21,7 @@ const DEFAULT_SETTINGS: DesignSettings = {
   saturation: 100,
   blur: 0,
   headlineText: 'Meeting you in...',
+  textColorMode: 'auto',
 };
 
 interface DesignContextType {
@@ -33,6 +34,8 @@ interface DesignContextType {
   setFilter: (filter: string) => void;
   setHeadlineText: (text: string) => void;
   setCustomColor: (colorKey: keyof ThemeColors, color: string) => void;
+  setTextColorMode: (mode: DesignSettings['textColorMode']) => void;
+  setCustomTextColor: (color: string) => void;
   updateDesign: (updates: Partial<DesignSettings>) => void;
 }
 
@@ -46,6 +49,8 @@ const DesignContext = createContext<DesignContextType>({
   setFilter: () => {},
   setHeadlineText: () => {},
   setCustomColor: () => {},
+  setTextColorMode: () => {},
+  setCustomTextColor: () => {},
   updateDesign: () => {},
 });
 
@@ -58,6 +63,9 @@ export function DesignProvider({ children }: { children: React.ReactNode }) {
         const merged = { ...DEFAULT_SETTINGS, ...saved };
         if (saved.hideGenderLabel === undefined) {
           merged.hideGenderLabel = saved.themeId === 'basic';
+        }
+        if (saved.textColorMode === undefined) {
+          merged.textColorMode = 'auto';
         }
         setDesign(merged);
       }
@@ -111,6 +119,14 @@ export function DesignProvider({ children }: { children: React.ReactNode }) {
     persist({ ...design, colors: newColors, presetId: null });
   }, [design, persist]);
 
+  const setTextColorMode = useCallback((mode: DesignSettings['textColorMode']) => {
+    persist({ ...design, textColorMode: mode ?? 'auto', presetId: null });
+  }, [design, persist]);
+
+  const setCustomTextColor = useCallback((color: string) => {
+    persist({ ...design, customTextColor: color, textColorMode: 'custom', presetId: null });
+  }, [design, persist]);
+
   return (
     <DesignContext.Provider value={{
       design,
@@ -122,6 +138,8 @@ export function DesignProvider({ children }: { children: React.ReactNode }) {
       setFilter,
       setHeadlineText,
       setCustomColor,
+      setTextColorMode,
+      setCustomTextColor,
       updateDesign,
     }}>
       {children}
