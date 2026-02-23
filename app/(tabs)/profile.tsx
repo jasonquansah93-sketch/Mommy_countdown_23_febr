@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  Image,
   Modal,
   TextInput,
   KeyboardAvoidingView,
@@ -15,12 +14,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
 import { useProfile } from '../../context/ProfileContext';
 import { useDesign } from '../../context/DesignContext';
 import { getWeeksAndDays, getDaysRemaining, formatDateLabel } from '../../utils/date';
 import { loadJSON, saveJSON } from '../../utils/storage';
-import { THEMES } from '../../constants/themes';
 
 // ─── Reminders persistence ───────────────────────────────────────────────────
 const REMINDERS_KEY = 'mommy_reminders';
@@ -138,13 +135,13 @@ function ReminderRow({
         <Text style={styles.reminderTitle}>{title}</Text>
         <Text style={styles.reminderSubtitle}>{subtitle}</Text>
       </View>
-      {/* Toggle color derives from theme accent */}
+      {/* Toggle: full-opacity accent on ON track, always white thumb for contrast */}
       <Switch
         value={value}
         onValueChange={onToggle}
-        trackColor={{ false: '#E0E0E0', true: accentColor + 'AA' }}
-        thumbColor={value ? accentColor : '#FFFFFF'}
-        ios_backgroundColor="#E0E0E0"
+        trackColor={{ false: '#D1D1D6', true: accentColor }}
+        thumbColor="#FFFFFF"
+        ios_backgroundColor="#D1D1D6"
       />
     </View>
   );
@@ -153,8 +150,7 @@ function ReminderRow({
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const { profile, updateProfile } = useProfile();
-  const { colors, design } = useDesign();
-  const router = useRouter();
+  const { colors } = useDesign();
 
   // ── Reminders — persisted ──────────────────────────────────────────────────
   const [remindersWeekly, setRemindersWeekly] = useState(true);
@@ -224,23 +220,6 @@ export default function ProfileScreen() {
   // Gender icon color follows theme, not hardcoded
   const genderColor = colors.primary;
 
-  // Display format — read-only, derived from profile
-  const displayFormatLabel = (() => {
-    switch (profile.timerDisplayMode) {
-      case 'hours': return 'Hours';
-      case 'minutes': return 'Minutes';
-      case 'seconds': return 'Seconds';
-      default: return 'Weeks + Days';
-    }
-  })();
-
-  // Theme name — derived from design store (single source of truth)
-  const themeName =
-    THEMES.find((t) => t.id === design.themeId)?.name ?? 'Custom';
-
-  // Avatar image — same source as Design/Countdown background photo
-  const hasPhoto = design.backgroundPhoto != null;
-
   // Row icon colors derived from theme
   const pillBg = colors.primary;
   const iconPrimary = colors.primary;
@@ -271,29 +250,6 @@ export default function ProfileScreen() {
 
         {/* ── Profile Card ─────────────────────────────────────────────────── */}
         <View style={styles.profileCard}>
-          {/* Avatar — shows Design background photo if set */}
-          <View style={styles.avatarWrapper}>
-            {hasPhoto ? (
-              <Image
-                source={{ uri: design.backgroundPhoto! }}
-                style={styles.avatarImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={styles.avatarCircle}>
-                <Ionicons name="person" size={52} color="#D0D0D0" />
-              </View>
-            )}
-            {/* Camera badge — navigates to Design > Photo & Filters */}
-            <TouchableOpacity
-              style={[styles.cameraBtn, { backgroundColor: colors.primary }]}
-              onPress={() => router.push('/(tabs)/design')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="camera" size={13} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-
           {/* Name — tap to edit */}
           <TouchableOpacity onPress={openNameEdit} activeOpacity={0.7}>
             <Text style={styles.profileName}>{babyName}</Text>
@@ -347,15 +303,6 @@ export default function ProfileScreen() {
             iconColor="#AAAAAA"
             label="Due Date"
             value={dueDateRow}
-            isLast={false}
-          />
-          {/* Display Format — read-only */}
-          <DisabledRow
-            iconName="time-outline"
-            iconBg="#F0F8FF"
-            iconColor="#AAAAAA"
-            label="Display Format"
-            value={displayFormatLabel}
             isLast={true}
           />
         </View>
@@ -447,16 +394,6 @@ export default function ProfileScreen() {
             value="English"
             isLast={false}
             onPress={() => {}}
-          />
-          {/* Theme — derived from design store */}
-          <ActiveRow
-            iconName="color-palette-outline"
-            iconBg={iconPrimaryBg}
-            iconColor={iconPrimary}
-            label="Theme"
-            value={themeName}
-            isLast={false}
-            onPress={() => router.push('/(tabs)/design')}
           />
           <ActiveRow
             iconName="share-social-outline"
@@ -590,44 +527,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: CARD_RADIUS,
     alignItems: 'center',
-    paddingTop: 24,
+    paddingTop: 28,
     paddingBottom: 20,
     paddingHorizontal: 16,
     marginBottom: 24,
     ...CARD_SHADOW,
-  },
-  avatarWrapper: {
-    position: 'relative',
-    marginBottom: 12,
-  },
-  avatarCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: '#F2F2F2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#EBEBEB',
-  },
-  avatarImage: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    borderWidth: 2,
-    borderColor: '#EBEBEB',
-  },
-  cameraBtn: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
   },
   profileName: {
     fontSize: 20,
