@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useProfile } from '../../context/ProfileContext';
 import { useDesign } from '../../context/DesignContext';
-import { getWeeksAndDays, getDaysRemaining, formatDateLabel } from '../../utils/date';
+import { getDaysRemaining, formatDateLabel } from '../../utils/date';
 import { loadJSON, saveJSON } from '../../utils/storage';
 
 // ─── Reminders persistence ───────────────────────────────────────────────────
@@ -197,7 +197,6 @@ export default function ProfileScreen() {
   };
 
   // ── Derived values — same utilities as Countdown ──────────────────────────
-  const { weeks } = getWeeksAndDays(profile.dueDate);
   const daysLeft = getDaysRemaining(profile.dueDate);
   const babyName = profile.name || 'Baby';
 
@@ -264,22 +263,26 @@ export default function ProfileScreen() {
           {/* Divider */}
           <View style={styles.cardDivider} />
 
-          {/* Stats row */}
+          {/* Stats row: Gender + Days Left only */}
           <View style={styles.statsRow}>
-            <View style={styles.statCol}>
-              <Text style={styles.statNumber}>{weeks}</Text>
-              <Text style={styles.statLabel}>WEEK</Text>
-            </View>
-            <View style={styles.statSep} />
-            <View style={styles.statCol}>
-              <Text style={[styles.statSymbol, { color: genderColor }]}>{genderSymbol}</Text>
-              <Text style={styles.statLabel}>{genderLabel}</Text>
-            </View>
-            <View style={styles.statSep} />
-            <View style={styles.statCol}>
-              <Text style={styles.statNumber}>{daysLeft}</Text>
-              <Text style={styles.statLabel}>DAYS LEFT</Text>
-            </View>
+            {profile.gender != null ? (
+              <>
+                <View style={styles.statCol}>
+                  <Text style={[styles.statSymbol, { color: genderColor }]}>{genderSymbol}</Text>
+                  <Text style={styles.statLabel}>{genderLabel}</Text>
+                </View>
+                <View style={styles.statSep} />
+                <View style={styles.statCol}>
+                  <Text style={styles.statNumber}>{daysLeft}</Text>
+                  <Text style={styles.statLabel}>DAYS LEFT</Text>
+                </View>
+              </>
+            ) : (
+              <View style={styles.statCol}>
+                <Text style={styles.statNumber}>{daysLeft}</Text>
+                <Text style={styles.statLabel}>DAYS LEFT</Text>
+              </View>
+            )}
           </View>
         </View>
 
