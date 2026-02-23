@@ -1,9 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ImageBackground,
   TouchableOpacity,
   TextInput,
   Modal,
@@ -16,8 +15,7 @@ import { getWeeksAndDays, getTimeUntilDue } from '../../utils/date';
 import { getResolvedFontFamily } from '../../constants/fonts';
 import { getContrastingTextColor, getBadgeTextColor, isLightBackground } from '../../utils/contrast';
 import { Ionicons } from '@expo/vector-icons';
-
-const DEFAULT_BG = require('../../assets/baby-bg.png');
+import CountdownCardBackground from '../shared/CountdownCardBackground';
 
 export default function DesignPreview() {
   const { profile } = useProfile();
@@ -25,7 +23,6 @@ export default function DesignPreview() {
   const { weeks, days } = getWeeksAndDays(profile.dueDate);
   const time = getTimeUntilDue(profile.dueDate);
 
-  // State for inline text editing
   const [isEditing, setIsEditing] = useState(false);
   const [tempText, setTempText] = useState(design.headlineText || 'Meeting you in...');
 
@@ -44,6 +41,7 @@ export default function DesignPreview() {
   const badgeBg = colors.surface;
   const badgeTextColor = getBadgeTextColor(badgeBg);
   const contentTextColor = getContrastingTextColor(colors.background, mode, customColor);
+  const isLightText = isLightBackground(contentTextColor);
 
   const handleEditStart = () => {
     setTempText(design.headlineText || 'Meeting you in...');
@@ -55,128 +53,57 @@ export default function DesignPreview() {
     setIsEditing(false);
   };
 
-  const cardContent = (
-    <View style={styles.inner}>
-      {showGenderBadge && (
-        <View style={[styles.genderBadge, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.genderText, { color: badgeTextColor, fontFamily: displayFont }]}>
-            {genderLabel}
-          </Text>
-        </View>
-      )}
-
-      <TouchableOpacity onPress={handleEditStart} activeOpacity={0.7}>
-        <View style={[styles.headlineRow, !showGenderBadge && { marginTop: 0 }]}>
-          <Text style={[styles.subtitle, { color: contentTextColor, fontFamily: displayFont }]}>
-            {design.headlineText || 'Tap to edit...'}
-          </Text>
-          <Ionicons name="pencil" size={14} color={contentTextColor} style={[styles.editIcon, { opacity: 0.8 }]} />
-        </View>
-      </TouchableOpacity>
-
-      <View style={styles.countdownRow}>
-        <View style={styles.unit}>
-          <Text style={[styles.number, { color: contentTextColor }]}>{String(weeks).padStart(2, '0')}</Text>
-          <Text style={[styles.label, { color: contentTextColor }]}>WEEKS</Text>
-        </View>
-        <View style={[styles.divider, { backgroundColor: colors.accent }]} />
-        <View style={styles.unit}>
-          <Text style={[styles.number, { color: contentTextColor }]}>{String(days).padStart(2, '0')}</Text>
-          <Text style={[styles.label, { color: contentTextColor }]}>DAYS</Text>
-        </View>
-        <View style={[styles.divider, { backgroundColor: colors.accent }]} />
-        <View style={styles.unit}>
-          <Text style={[styles.number, { color: contentTextColor }]}>
-            {String(time.hours).padStart(2, '0')}
-          </Text>
-          <Text style={[styles.label, { color: contentTextColor }]}>HOURS</Text>
-        </View>
-      </View>
-    </View>
-  );
-
-  const b = design.brightness / 100;
-  const c = design.contrast / 100;
-  const s = design.saturation / 100;
-  const webFilterStyle = useMemo(() => {
-    if (Platform.OS === 'web') {
-      return { filter: `brightness(${b}) contrast(${c}) saturate(${s}) blur(${design.blur}px)` };
-    }
-    return undefined;
-  }, [b, c, s, design.blur]);
-
-  const brightnessOverlayOpacity = useMemo(() => {
-    if (Platform.OS !== 'web') {
-      const v = design.brightness;
-      if (v < 100) return (100 - v) / 100;
-      if (v > 100) return (v - 100) / 100;
-    }
-    return 0;
-  }, [design.brightness]);
-
-  // Adaptive overlay: match HeroCountdownCard exactly.
-  // White/light text → dark scrim; dark text → white scrim (same 0.75 as Main).
-  const isLightText = isLightBackground(contentTextColor);
-  const overlayColor = isLightText
-    ? 'rgba(0,0,0,0.45)'
-    : 'rgba(255,255,255,0.75)';
-
-  const renderCard = () => {
-    const bgSource = design.backgroundPhoto != null
-      ? { uri: design.backgroundPhoto }
-      : DEFAULT_BG;
-
-    const blurVal = Platform.OS === 'web' ? 0 : design.blur;
-
-    const imageLayer = (
-      <ImageBackground
-        source={bgSource}
-        style={styles.bg}
-        imageStyle={styles.bgImage}
-        blurRadius={blurVal}
-        resizeMode="cover"
-      >
-        {/* Adaptive overlay — identical logic to HeroCountdownCard */}
-        <View style={[styles.overlay, { backgroundColor: overlayColor }]} />
-        {Platform.OS !== 'web' && brightnessOverlayOpacity > 0 && (
-          <View
-            style={[
-              StyleSheet.absoluteFill,
-              {
-                backgroundColor:
-                  design.brightness < 100
-                    ? `rgba(0,0,0,${brightnessOverlayOpacity})`
-                    : `rgba(255,255,255,${brightnessOverlayOpacity})`,
-              },
-            ]}
-            pointerEvents="none"
-          />
-        )}
-        {Platform.OS === 'web' ? null : cardContent}
-      </ImageBackground>
-    );
-
-    return (
-      <View style={[styles.card, { backgroundColor: colors.surface }]}>
-        {Platform.OS === 'web' && webFilterStyle ? (
-          <>
-            <View style={[styles.bg, styles.bgFiltered, webFilterStyle]}>{imageLayer}</View>
-            <View style={styles.contentOverlay} pointerEvents="box-none">
-              {cardContent}
-            </View>
-          </>
-        ) : (
-          imageLayer
-        )}
-      </View>
-    );
-  };
-
   return (
     <>
-      {renderCard()}
+      <CountdownCardBackground
+        design={design}
+        isLightText={isLightText}
+        cardBgColor={colors.surface}
+        cardStyle={styles.cardMargin}
+      >
+        <View style={styles.inner}>
+          {/* Gender badge */}
+          {showGenderBadge && (
+            <View style={[styles.genderBadge, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.genderText, { color: badgeTextColor, fontFamily: displayFont }]}>
+                {genderLabel}
+              </Text>
+            </View>
+          )}
 
-      {/* Text editing modal */}
+          {/* Editable headline — same string that HeroCountdownCard uses */}
+          <TouchableOpacity onPress={handleEditStart} activeOpacity={0.7}>
+            <View style={[styles.headlineRow, !showGenderBadge && { marginTop: 0 }]}>
+              <Text style={[styles.subtitle, { color: contentTextColor, fontFamily: displayFont }]}>
+                {design.headlineText || 'Tap to edit...'}
+              </Text>
+              <Ionicons name="pencil" size={14} color={contentTextColor} style={[styles.editIcon, { opacity: 0.8 }]} />
+            </View>
+          </TouchableOpacity>
+
+          {/* Countdown numbers — WEEKS | DAYS | HOURS */}
+          <View style={styles.countdownRow}>
+            <View style={styles.unit}>
+              <Text style={[styles.number, { color: contentTextColor }]}>{String(weeks).padStart(2, '0')}</Text>
+              <Text style={[styles.label, { color: contentTextColor }]}>WEEKS</Text>
+            </View>
+            <View style={[styles.divider, { backgroundColor: colors.accent }]} />
+            <View style={styles.unit}>
+              <Text style={[styles.number, { color: contentTextColor }]}>{String(days).padStart(2, '0')}</Text>
+              <Text style={[styles.label, { color: contentTextColor }]}>DAYS</Text>
+            </View>
+            <View style={[styles.divider, { backgroundColor: colors.accent }]} />
+            <View style={styles.unit}>
+              <Text style={[styles.number, { color: contentTextColor }]}>
+                {String(time.hours).padStart(2, '0')}
+              </Text>
+              <Text style={[styles.label, { color: contentTextColor }]}>HOURS</Text>
+            </View>
+          </View>
+        </View>
+      </CountdownCardBackground>
+
+      {/* Inline headline edit modal */}
       <Modal visible={isEditing} transparent animationType="fade">
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -211,40 +138,9 @@ export default function DesignPreview() {
 }
 
 const styles = StyleSheet.create({
-  card: {
+  cardMargin: {
     marginHorizontal: 16,
     marginTop: 8,
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  bg: {
-    width: '100%',
-  },
-  bgFiltered: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  contentOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-  },
-  bgImage: {
-    borderRadius: 20,
-  },
-  placeholderBg: {
-    width: '100%',
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.4)',
   },
   inner: {
     padding: 20,
@@ -304,7 +200,7 @@ const styles = StyleSheet.create({
     height: 48,
     marginHorizontal: 16,
   },
-  // Modal styles
+  // Modal
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',

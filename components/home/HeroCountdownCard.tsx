@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   Share,
-  ImageBackground,
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,11 +15,8 @@ import { usePremium } from '../../context/PremiumContext';
 import { getWeeksAndDays, getTimeUntilDueMs } from '../../utils/date';
 import GradientButton from './GradientButton';
 import { useRouter } from 'expo-router';
+import CountdownCardBackground from '../shared/CountdownCardBackground';
 
-// Default soft baby background
-const DEFAULT_BG = require('../../assets/baby-bg.png');
-
-// Display modes for countdown
 type CountdownMode = 'weeks' | 'detailed';
 
 interface Props {
@@ -37,7 +33,6 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
   const [time, setTime] = useState(getTimeUntilDueMs(profile.dueDate));
   const countdownStarted = profile.countdownStarted === true;
 
-  // Mode state: 'weeks' = WEEKS|DAYS|HOURS, 'detailed' = MIN|SEC|MS as primary
   const [displayMode, setDisplayMode] = useState<CountdownMode>('weeks');
 
   useEffect(() => {
@@ -63,16 +58,13 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
   const badgeBg = '#FFFFFF';
   const badgeTextColor = getBadgeTextColor(badgeBg);
   const contentTextColor = getContrastingTextColor(colors.background, mode, customColor);
-
-  // Adaptive overlay and scrim — identical to DesignPreview
   const isLightText = isLightBackground(contentTextColor);
-  const overlayColor = isLightText
-    ? 'rgba(0,0,0,0.45)'
-    : 'rgba(255,255,255,0.75)';
-  // Secondary pill: guaranteed contrast regardless of theme color
+
+  // Secondary pill scrim — ensures MIN/SEC/MS are always readable
   const pillScrimColor = isLightText
     ? 'rgba(0,0,0,0.35)'
     : 'rgba(255,255,255,0.70)';
+
   // Text shadow for legibility on any background
   const textShadowStyle = isLightText
     ? { textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }
@@ -83,188 +75,129 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
     Share.share({ message: msg });
   };
 
-  // In STATE A: scroll DOWN to Pregnancy Details section (does NOT start countdown)
-  const handleScrollToDetails = () => {
-    onScrollToDetails?.();
-  };
-
-  // Toggle between display modes
   const toggleDisplayMode = () => {
     setDisplayMode(prev => prev === 'weeks' ? 'detailed' : 'weeks');
   };
 
-  const hasCustomBg = design.backgroundPhoto != null;
-  const bgSource = hasCustomBg ? { uri: design.backgroundPhoto } : DEFAULT_BG;
-
-  const cardInner = (
-    <View style={styles.innerCard}>
-      {/* Adaptive overlay — dark when text is light, white when text is dark */}
-      <View style={[styles.blurOverlay, { backgroundColor: overlayColor }]} />
-
-      {/* Top row: gender badge + premium + edit */}
-      <View style={styles.topRow}>
-        {showGenderBadge && (
-          <View style={styles.genderBadge}>
-            <Text style={[styles.genderText, { color: badgeTextColor, fontFamily: displayFont }]}>
-              {genderLabel}
-            </Text>
-          </View>
-        )}
-        <View style={styles.topRight}>
-          {isPremium === true && (
-            <View style={styles.premiumBadge}>
-              <Ionicons name="star" size={12} color={colors.primary} />
-              <Text style={[styles.premiumText, { color: colors.primary }]}>Premium</Text>
+  return (
+    <CountdownCardBackground
+      design={design}
+      isLightText={isLightText}
+      cardBgColor={colors.surface}
+      cardStyle={styles.cardMargin}
+    >
+      <View style={styles.innerCard}>
+        {/* Top row: gender badge + premium + edit */}
+        <View style={styles.topRow}>
+          {showGenderBadge && (
+            <View style={styles.genderBadge}>
+              <Text style={[styles.genderText, { color: badgeTextColor, fontFamily: displayFont }]}>
+                {genderLabel}
+              </Text>
             </View>
           )}
-          <TouchableOpacity
-            style={[styles.editCircle, { backgroundColor: '#FFFFFF' }]}
-            onPress={() => router.push('/(tabs)/design')}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="pencil" size={16} color={contentTextColor} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* STATE A: Not started */}
-      {!countdownStarted && (
-        <View style={styles.notStartedContent}>
-          <Text style={[styles.notStartedTitle, { color: contentTextColor }]}>
-            Ready to start?
-          </Text>
-          <Text style={[styles.notStartedSub, { color: contentTextColor, opacity: 0.85 }]}>
-            Set your dates and begin counting down
-          </Text>
-          <GradientButton
-            title="START YOUR COUNTDOWN"
-            onPress={handleScrollToDetails}
-            style={styles.fullWidthBtn}
-          />
-        </View>
-      )}
-
-      {/* STATE B: Countdown running */}
-      {countdownStarted && (
-        <>
-          <Text style={[styles.subtitle, { color: contentTextColor, fontFamily: displayFont }]}>
-            Counting down to meet you...
-          </Text>
-
-          {/* Tappable countdown area to switch modes */}
-          <TouchableOpacity
-            onPress={toggleDisplayMode}
-            activeOpacity={0.8}
-            style={styles.countdownTouchable}
-          >
-            {displayMode === 'weeks' ? (
-              <>
-                {/* Primary: WEEKS | DAYS | HOURS */}
-                <View style={styles.primaryRow}>
-                  <CountUnit value={String(weeks).padStart(2, '0')} label="WEEKS" color={contentTextColor} />
-                  <View style={[styles.divider, { backgroundColor: colors.accent }]} />
-                  <CountUnit value={String(days).padStart(2, '0')} label="DAYS" color={contentTextColor} />
-                  <View style={[styles.divider, { backgroundColor: colors.accent }]} />
-                  <CountUnit value={String(time.hours).padStart(2, '0')} label="HOURS" color={contentTextColor} />
-                </View>
-
-                {/* Secondary pill: MIN : SEC : MS — adaptive scrim ensures readability */}
-                <View style={[styles.secondaryPill, { backgroundColor: pillScrimColor }]}>
-                  <SmallUnit value={String(time.minutes).padStart(2, '0')} label="MIN" color={contentTextColor} textShadow={textShadowStyle} />
-                  <Text style={[styles.colon, { color: contentTextColor }, textShadowStyle]}>:</Text>
-                  <SmallUnit value={String(time.seconds).padStart(2, '0')} label="SEC" color={contentTextColor} textShadow={textShadowStyle} />
-                  <Text style={[styles.colon, { color: contentTextColor }, textShadowStyle]}>:</Text>
-                  <SmallUnit value={String(time.ms).padStart(2, '0')} label="MS" color={contentTextColor} style={{ opacity: 0.8 }} textShadow={textShadowStyle} />
-                </View>
-              </>
-            ) : (
-              <>
-                {/* Alternative mode: MINUTES | SECONDS | MILLISECONDS as primary */}
-                <View style={styles.primaryRow}>
-                  <CountUnit
-                    value={String(time.totalMinutes).padStart(2, '0')}
-                    label="MINUTES"
-                    color={contentTextColor}
-                  />
-                  <View style={[styles.divider, { backgroundColor: colors.accent }]} />
-                  <CountUnit
-                    value={String(time.seconds).padStart(2, '0')}
-                    label="SECONDS"
-                    color={contentTextColor}
-                  />
-                  <View style={[styles.divider, { backgroundColor: colors.accent }]} />
-                  <CountUnit
-                    value={String(time.ms).padStart(2, '0')}
-                    label="MS"
-                    color={contentTextColor}
-                  />
-                </View>
-
-                {/* Secondary: Weeks/Days/Hours — adaptive scrim */}
-                <View style={[styles.secondaryPill, { backgroundColor: pillScrimColor }]}>
-                  <SmallUnit value={String(weeks).padStart(2, '0')} label="WKS" color={contentTextColor} textShadow={textShadowStyle} />
-                  <Text style={[styles.colon, { color: contentTextColor }, textShadowStyle]}>:</Text>
-                  <SmallUnit value={String(days).padStart(2, '0')} label="DAYS" color={contentTextColor} textShadow={textShadowStyle} />
-                  <Text style={[styles.colon, { color: contentTextColor }, textShadowStyle]}>:</Text>
-                  <SmallUnit value={String(time.hours).padStart(2, '0')} label="HRS" color={contentTextColor} style={{ opacity: 0.8 }} textShadow={textShadowStyle} />
-                </View>
-              </>
+          <View style={styles.topRight}>
+            {isPremium === true && (
+              <View style={styles.premiumBadge}>
+                <Ionicons name="star" size={12} color={colors.primary} />
+                <Text style={[styles.premiumText, { color: colors.primary }]}>Premium</Text>
+              </View>
             )}
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.editCircle, { backgroundColor: '#FFFFFF' }]}
+              onPress={() => router.push('/(tabs)/design')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="pencil" size={16} color={contentTextColor} />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-          {/* Mode switch hint */}
-          <Text style={[styles.modeHint, { color: colors.textSecondary }]}>
-            Tap countdown to switch view
-          </Text>
-
-          {/* Share button */}
-          <GradientButton
-            title="SHARE OUR COUNTDOWN 💛"
-            icon="share-outline"
-            onPress={handleShare}
-            style={styles.fullWidthBtn}
-          />
-        </>
-      )}
-    </View>
-  );
-
-  // Use design.blur directly — same as DesignPreview (single source of truth).
-  const blurVal = hasCustomBg ? design.blur : 4;
-  const brightnessOverlayOpacity = hasCustomBg
-    ? design.brightness < 100
-      ? (100 - design.brightness) / 100
-      : design.brightness > 100
-        ? (design.brightness - 100) / 100
-        : 0
-    : 0;
-
-  return (
-    <View style={[styles.card, { backgroundColor: colors.surface }]}>
-      <ImageBackground
-        source={bgSource}
-        style={styles.bgFill}
-        imageStyle={styles.bgImageRadius}
-        blurRadius={blurVal}
-        resizeMode="cover"
-      >
-        {hasCustomBg && brightnessOverlayOpacity > 0 && (
-          <View
-            style={[
-              StyleSheet.absoluteFill,
-              {
-                backgroundColor:
-                  design.brightness < 100
-                    ? `rgba(0,0,0,${brightnessOverlayOpacity})`
-                    : `rgba(255,255,255,${brightnessOverlayOpacity})`,
-              },
-            ]}
-            pointerEvents="none"
-          />
+        {/* STATE A: Not started */}
+        {!countdownStarted && (
+          <View style={styles.notStartedContent}>
+            <Text style={[styles.notStartedTitle, { color: contentTextColor }]}>
+              Ready to start?
+            </Text>
+            <Text style={[styles.notStartedSub, { color: contentTextColor, opacity: 0.85 }]}>
+              Set your dates and begin counting down
+            </Text>
+            <GradientButton
+              title="START YOUR COUNTDOWN"
+              onPress={() => onScrollToDetails?.()}
+              style={styles.fullWidthBtn}
+            />
+          </View>
         )}
-        {cardInner}
-      </ImageBackground>
-    </View>
+
+        {/* STATE B: Countdown running */}
+        {countdownStarted && (
+          <>
+            {/* Headline — single source of truth: design.headlineText */}
+            <Text style={[styles.subtitle, { color: contentTextColor, fontFamily: displayFont }]}>
+              {design.headlineText || 'Meeting you in...'}
+            </Text>
+
+            {/* Tappable countdown area to switch modes */}
+            <TouchableOpacity
+              onPress={toggleDisplayMode}
+              activeOpacity={0.8}
+              style={styles.countdownTouchable}
+            >
+              {displayMode === 'weeks' ? (
+                <>
+                  <View style={styles.primaryRow}>
+                    <CountUnit value={String(weeks).padStart(2, '0')} label="WEEKS" color={contentTextColor} />
+                    <View style={[styles.divider, { backgroundColor: colors.accent }]} />
+                    <CountUnit value={String(days).padStart(2, '0')} label="DAYS" color={contentTextColor} />
+                    <View style={[styles.divider, { backgroundColor: colors.accent }]} />
+                    <CountUnit value={String(time.hours).padStart(2, '0')} label="HOURS" color={contentTextColor} />
+                  </View>
+
+                  {/* Secondary pill: MIN : SEC : MS */}
+                  <View style={[styles.secondaryPill, { backgroundColor: pillScrimColor }]}>
+                    <SmallUnit value={String(time.minutes).padStart(2, '0')} label="MIN" color={contentTextColor} textShadow={textShadowStyle} />
+                    <Text style={[styles.colon, { color: contentTextColor }, textShadowStyle]}>:</Text>
+                    <SmallUnit value={String(time.seconds).padStart(2, '0')} label="SEC" color={contentTextColor} textShadow={textShadowStyle} />
+                    <Text style={[styles.colon, { color: contentTextColor }, textShadowStyle]}>:</Text>
+                    <SmallUnit value={String(time.ms).padStart(2, '0')} label="MS" color={contentTextColor} style={{ opacity: 0.8 }} textShadow={textShadowStyle} />
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={styles.primaryRow}>
+                    <CountUnit value={String(time.totalMinutes).padStart(2, '0')} label="MINUTES" color={contentTextColor} />
+                    <View style={[styles.divider, { backgroundColor: colors.accent }]} />
+                    <CountUnit value={String(time.seconds).padStart(2, '0')} label="SECONDS" color={contentTextColor} />
+                    <View style={[styles.divider, { backgroundColor: colors.accent }]} />
+                    <CountUnit value={String(time.ms).padStart(2, '0')} label="MS" color={contentTextColor} />
+                  </View>
+
+                  <View style={[styles.secondaryPill, { backgroundColor: pillScrimColor }]}>
+                    <SmallUnit value={String(weeks).padStart(2, '0')} label="WKS" color={contentTextColor} textShadow={textShadowStyle} />
+                    <Text style={[styles.colon, { color: contentTextColor }, textShadowStyle]}>:</Text>
+                    <SmallUnit value={String(days).padStart(2, '0')} label="DAYS" color={contentTextColor} textShadow={textShadowStyle} />
+                    <Text style={[styles.colon, { color: contentTextColor }, textShadowStyle]}>:</Text>
+                    <SmallUnit value={String(time.hours).padStart(2, '0')} label="HRS" color={contentTextColor} style={{ opacity: 0.8 }} textShadow={textShadowStyle} />
+                  </View>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <Text style={[styles.modeHint, { color: colors.textSecondary }]}>
+              Tap countdown to switch view
+            </Text>
+
+            <GradientButton
+              title="SHARE OUR COUNTDOWN 💛"
+              icon="share-outline"
+              onPress={handleShare}
+              style={styles.fullWidthBtn}
+            />
+          </>
+        )}
+      </View>
+    </CountdownCardBackground>
   );
 }
 
@@ -299,29 +232,13 @@ function SmallUnit({
 }
 
 const styles = StyleSheet.create({
-  card: {
+  // Extra margin applied via cardStyle prop on CountdownCardBackground
+  cardMargin: {
     marginHorizontal: 16,
     marginTop: 8,
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  bgFill: {
-    width: '100%',
-  },
-  bgImageRadius: {
-    borderRadius: 20,
   },
   innerCard: {
     padding: 20,
-  },
-  blurOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    // backgroundColor set dynamically via overlayColor (adaptive to text color)
   },
   topRow: {
     flexDirection: 'row',
@@ -380,7 +297,6 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
-  // STATE A
   notStartedContent: {
     alignItems: 'center',
     paddingVertical: 24,
@@ -398,7 +314,6 @@ const styles = StyleSheet.create({
   fullWidthBtn: {
     width: '100%',
   },
-  // STATE B
   subtitle: {
     fontSize: 18,
     fontStyle: 'italic',
