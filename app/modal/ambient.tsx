@@ -16,7 +16,7 @@ import { usePremium } from '../../context/PremiumContext';
 import { getDaysRemaining } from '../../utils/date';
 import { Ionicons } from '@expo/vector-icons';
 
-const DEFAULT_BG = require('../../assets/default-bg.jpg');
+const DEFAULT_BG = require('../../assets/baby-bg.png');
 
 export default function AmbientScreen() {
   const router = useRouter();
