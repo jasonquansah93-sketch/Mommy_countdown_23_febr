@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useProfile } from '../../context/ProfileContext';
 import { useDesign } from '../../context/DesignContext';
 import { getResolvedFontFamily } from '../../constants/fonts';
-import { getContrastingTextColor, getBadgeTextColor } from '../../utils/contrast';
+import { getContrastingTextColor, getBadgeTextColor, isLightBackground } from '../../utils/contrast';
 import { usePremium } from '../../context/PremiumContext';
 import { getWeeksAndDays, getTimeUntilDueMs } from '../../utils/date';
 import GradientButton from './GradientButton';
@@ -64,6 +64,20 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
   const badgeTextColor = getBadgeTextColor(badgeBg);
   const contentTextColor = getContrastingTextColor(colors.background, mode, customColor);
 
+  // Adaptive overlay and scrim — identical to DesignPreview
+  const isLightText = isLightBackground(contentTextColor);
+  const overlayColor = isLightText
+    ? 'rgba(0,0,0,0.45)'
+    : 'rgba(255,255,255,0.75)';
+  // Secondary pill: guaranteed contrast regardless of theme color
+  const pillScrimColor = isLightText
+    ? 'rgba(0,0,0,0.35)'
+    : 'rgba(255,255,255,0.70)';
+  // Text shadow for legibility on any background
+  const textShadowStyle = isLightText
+    ? { textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }
+    : undefined;
+
   const handleShare = () => {
     const msg = `Only ${weeks} weeks and ${days} days until we meet our baby! 💕`;
     Share.share({ message: msg });
@@ -84,8 +98,8 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
 
   const cardInner = (
     <View style={styles.innerCard}>
-      {/* Blur/light overlay on background image */}
-      <View style={styles.blurOverlay} />
+      {/* Adaptive overlay — dark when text is light, white when text is dark */}
+      <View style={[styles.blurOverlay, { backgroundColor: overlayColor }]} />
 
       {/* Top row: gender badge + premium + edit */}
       <View style={styles.topRow}>
@@ -154,13 +168,13 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
                   <CountUnit value={String(time.hours).padStart(2, '0')} label="HOURS" color={contentTextColor} />
                 </View>
 
-                {/* Secondary pill: MIN : SEC : MS */}
-                <View style={[styles.secondaryPill, { backgroundColor: colors.background }]}>
-                  <SmallUnit value={String(time.minutes).padStart(2, '0')} label="MIN" color={contentTextColor} />
-                  <Text style={[styles.colon, { color: contentTextColor }]}>:</Text>
-                  <SmallUnit value={String(time.seconds).padStart(2, '0')} label="SEC" color={contentTextColor} />
-                  <Text style={[styles.colon, { color: contentTextColor }]}>:</Text>
-                  <SmallUnit value={String(time.ms).padStart(2, '0')} label="MS" color={contentTextColor} style={{ opacity: 0.8 }} />
+                {/* Secondary pill: MIN : SEC : MS — adaptive scrim ensures readability */}
+                <View style={[styles.secondaryPill, { backgroundColor: pillScrimColor }]}>
+                  <SmallUnit value={String(time.minutes).padStart(2, '0')} label="MIN" color={contentTextColor} textShadow={textShadowStyle} />
+                  <Text style={[styles.colon, { color: contentTextColor }, textShadowStyle]}>:</Text>
+                  <SmallUnit value={String(time.seconds).padStart(2, '0')} label="SEC" color={contentTextColor} textShadow={textShadowStyle} />
+                  <Text style={[styles.colon, { color: contentTextColor }, textShadowStyle]}>:</Text>
+                  <SmallUnit value={String(time.ms).padStart(2, '0')} label="MS" color={contentTextColor} style={{ opacity: 0.8 }} textShadow={textShadowStyle} />
                 </View>
               </>
             ) : (
@@ -186,13 +200,13 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
                   />
                 </View>
 
-                {/* Secondary: Weeks/Days/Hours */}
-                <View style={[styles.secondaryPill, { backgroundColor: colors.background }]}>
-                  <SmallUnit value={String(weeks).padStart(2, '0')} label="WKS" color={contentTextColor} />
-                  <Text style={[styles.colon, { color: contentTextColor }]}>:</Text>
-                  <SmallUnit value={String(days).padStart(2, '0')} label="DAYS" color={contentTextColor} />
-                  <Text style={[styles.colon, { color: contentTextColor }]}>:</Text>
-                  <SmallUnit value={String(time.hours).padStart(2, '0')} label="HRS" color={contentTextColor} style={{ opacity: 0.8 }} />
+                {/* Secondary: Weeks/Days/Hours — adaptive scrim */}
+                <View style={[styles.secondaryPill, { backgroundColor: pillScrimColor }]}>
+                  <SmallUnit value={String(weeks).padStart(2, '0')} label="WKS" color={contentTextColor} textShadow={textShadowStyle} />
+                  <Text style={[styles.colon, { color: contentTextColor }, textShadowStyle]}>:</Text>
+                  <SmallUnit value={String(days).padStart(2, '0')} label="DAYS" color={contentTextColor} textShadow={textShadowStyle} />
+                  <Text style={[styles.colon, { color: contentTextColor }, textShadowStyle]}>:</Text>
+                  <SmallUnit value={String(time.hours).padStart(2, '0')} label="HRS" color={contentTextColor} style={{ opacity: 0.8 }} textShadow={textShadowStyle} />
                 </View>
               </>
             )}
@@ -215,7 +229,8 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
     </View>
   );
 
-  const blurVal = hasCustomBg ? (design.blur > 0 ? design.blur : 8) : 4;
+  // Use design.blur directly — same as DesignPreview (single source of truth).
+  const blurVal = hasCustomBg ? design.blur : 4;
   const brightnessOverlayOpacity = hasCustomBg
     ? design.brightness < 100
       ? (100 - design.brightness) / 100
@@ -267,16 +282,18 @@ function SmallUnit({
   label,
   color,
   style,
+  textShadow,
 }: {
   value: string;
   label: string;
   color: string;
   style?: object;
+  textShadow?: object;
 }) {
   return (
     <View style={styles.sBlock}>
-      <Text style={[styles.sValue, { color }]}>{value}</Text>
-      <Text style={[styles.sLabel, { color }, style]}>{label}</Text>
+      <Text style={[styles.sValue, { color }, textShadow]}>{value}</Text>
+      <Text style={[styles.sLabel, { color }, style, textShadow]}>{label}</Text>
     </View>
   );
 }
@@ -304,7 +321,7 @@ const styles = StyleSheet.create({
   },
   blurOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.75)',
+    // backgroundColor set dynamically via overlayColor (adaptive to text color)
   },
   topRow: {
     flexDirection: 'row',

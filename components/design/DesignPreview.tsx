@@ -14,8 +14,10 @@ import { useProfile } from '../../context/ProfileContext';
 import { useDesign } from '../../context/DesignContext';
 import { getWeeksAndDays, getTimeUntilDue } from '../../utils/date';
 import { getResolvedFontFamily } from '../../constants/fonts';
-import { getContrastingTextColor, getBadgeTextColor } from '../../utils/contrast';
+import { getContrastingTextColor, getBadgeTextColor, isLightBackground } from '../../utils/contrast';
 import { Ionicons } from '@expo/vector-icons';
+
+const DEFAULT_BG = require('../../assets/baby-bg.png');
 
 export default function DesignPreview() {
   const { profile } = useProfile();
@@ -112,55 +114,60 @@ export default function DesignPreview() {
     return 0;
   }, [design.brightness]);
 
+  // Adaptive overlay: match HeroCountdownCard exactly.
+  // White/light text → dark scrim; dark text → white scrim (same 0.75 as Main).
+  const isLightText = isLightBackground(contentTextColor);
+  const overlayColor = isLightText
+    ? 'rgba(0,0,0,0.45)'
+    : 'rgba(255,255,255,0.75)';
+
   const renderCard = () => {
-    if (design.backgroundPhoto != null) {
-      const imageLayer = (
-        <ImageBackground
-          source={{ uri: design.backgroundPhoto }}
-          style={styles.bg}
-          imageStyle={styles.bgImage}
-          blurRadius={Platform.OS === 'web' ? 0 : design.blur}
-        >
-          <View style={styles.overlay} />
-          {Platform.OS !== 'web' && brightnessOverlayOpacity > 0 && (
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                {
-                  backgroundColor:
-                    design.brightness < 100
-                      ? `rgba(0,0,0,${brightnessOverlayOpacity})`
-                      : `rgba(255,255,255,${brightnessOverlayOpacity})`,
-                },
-              ]}
-              pointerEvents="none"
-            />
-          )}
-          {Platform.OS === 'web' ? null : cardContent}
-        </ImageBackground>
-      );
-      return (
-        <View style={[styles.card, { backgroundColor: colors.surface }]}>
-          {Platform.OS === 'web' && webFilterStyle ? (
-            <>
-              <View style={[styles.bg, styles.bgFiltered, webFilterStyle]}>{imageLayer}</View>
-              <View style={styles.contentOverlay} pointerEvents="box-none">
-                {cardContent}
-              </View>
-            </>
-          ) : (
-            imageLayer
-          )}
-        </View>
-      );
-    }
+    const bgSource = design.backgroundPhoto != null
+      ? { uri: design.backgroundPhoto }
+      : DEFAULT_BG;
+
+    const blurVal = Platform.OS === 'web' ? 0 : design.blur;
+
+    const imageLayer = (
+      <ImageBackground
+        source={bgSource}
+        style={styles.bg}
+        imageStyle={styles.bgImage}
+        blurRadius={blurVal}
+        resizeMode="cover"
+      >
+        {/* Adaptive overlay — identical logic to HeroCountdownCard */}
+        <View style={[styles.overlay, { backgroundColor: overlayColor }]} />
+        {Platform.OS !== 'web' && brightnessOverlayOpacity > 0 && (
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                backgroundColor:
+                  design.brightness < 100
+                    ? `rgba(0,0,0,${brightnessOverlayOpacity})`
+                    : `rgba(255,255,255,${brightnessOverlayOpacity})`,
+              },
+            ]}
+            pointerEvents="none"
+          />
+        )}
+        {Platform.OS === 'web' ? null : cardContent}
+      </ImageBackground>
+    );
 
     return (
       <View style={[styles.card, { backgroundColor: colors.surface }]}>
-        <View style={[styles.placeholderBg, { backgroundColor: colors.background }]}>
-          <View style={[styles.overlay, { backgroundColor: 'rgba(255,255,255,0.4)' }]} />
-          {cardContent}
-        </View>
+        {Platform.OS === 'web' && webFilterStyle ? (
+          <>
+            <View style={[styles.bg, styles.bgFiltered, webFilterStyle]}>{imageLayer}</View>
+            <View style={styles.contentOverlay} pointerEvents="box-none">
+              {cardContent}
+            </View>
+          </>
+        ) : (
+          imageLayer
+        )}
       </View>
     );
   };
@@ -231,7 +238,6 @@ const styles = StyleSheet.create({
   },
   bgImage: {
     borderRadius: 20,
-    opacity: 0.5,
   },
   placeholderBg: {
     width: '100%',
