@@ -1,0 +1,44 @@
+---
+description: Automatic checkpoint commits after every completed feature or meaningful change
+alwaysApply: true
+---
+
+# Checkpoint Commit Rule
+
+After every completed feature, structural change, or meaningful UI update, create a checkpoint commit automatically.
+
+## Definition of "Completed"
+- No TypeScript errors
+- No lint errors (if lint config exists)
+- App builds successfully
+- Feature works as intended
+
+## Steps After Each Completion
+
+1. Stage all changed files: `git add .`
+2. Run typecheck: `npx tsc --noEmit` (if tsconfig exists)
+3. Create commit using the format below
+4. Push to `origin main` (unless on a feature branch)
+
+## Commit Message Format
+
+```
+Checkpoint: <short clear description of what was implemented>
+```
+
+Examples:
+- `Checkpoint: premium paywall layout implemented`
+- `Checkpoint: export high-resolution logic added`
+- `Checkpoint: milestone system refactored`
+
+## Rules
+- Do NOT modify unrelated files
+- Do NOT squash commits
+- Do NOT rewrite history
+- Each checkpoint must represent a stable, working state
+
+## After Pushing, Always Confirm
+- Current branch
+- Commit message
+- Commit hash
+- Push success (✅ / ❌)
