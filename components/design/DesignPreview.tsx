@@ -14,7 +14,7 @@ import { useProfile } from '../../context/ProfileContext';
 import { useDesign } from '../../context/DesignContext';
 import { getWeeksAndDays, getTimeUntilDue } from '../../utils/date';
 import { getResolvedFontFamily } from '../../constants/fonts';
-import { getContrastingTextColor } from '../../utils/contrast';
+import { getContrastingTextColor, getBadgeTextColor } from '../../utils/contrast';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function DesignPreview() {
@@ -39,7 +39,8 @@ export default function DesignPreview() {
 
   const mode = design.textColorMode ?? 'auto';
   const customColor = design.customTextColor;
-  const badgeTextColor = getContrastingTextColor(colors.surface, mode, customColor);
+  const badgeBg = colors.surface;
+  const badgeTextColor = getBadgeTextColor(badgeBg);
   const contentTextColor = getContrastingTextColor(colors.background, mode, customColor);
 
   const handleEditStart = () => {

@@ -9,21 +9,33 @@ const LIGHT_TEXT = '#FFFFFF';
 const DARK_TEXT = '#1a1a1a';
 
 /**
- * Parse hex color to RGB components (0-255).
+ * Parse hex or rgb/rgba color to RGB components (0-255).
  */
-function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  const cleaned = hex.replace(/^#/, '');
-  if (cleaned.length === 3) {
-    const r = parseInt(cleaned[0] + cleaned[0], 16);
-    const g = parseInt(cleaned[1] + cleaned[1], 16);
-    const b = parseInt(cleaned[2] + cleaned[2], 16);
-    return { r, g, b };
+function parseColor(color: string): { r: number; g: number; b: number } | null {
+  const trimmed = color.trim();
+  if (trimmed.startsWith('#')) {
+    const cleaned = trimmed.slice(1);
+    if (cleaned.length === 3) {
+      const r = parseInt(cleaned[0] + cleaned[0], 16);
+      const g = parseInt(cleaned[1] + cleaned[1], 16);
+      const b = parseInt(cleaned[2] + cleaned[2], 16);
+      return { r, g, b };
+    }
+    if (cleaned.length === 6) {
+      const r = parseInt(cleaned.slice(0, 2), 16);
+      const g = parseInt(cleaned.slice(2, 4), 16);
+      const b = parseInt(cleaned.slice(4, 6), 16);
+      return { r, g, b };
+    }
+    return null;
   }
-  if (cleaned.length === 6) {
-    const r = parseInt(cleaned.slice(0, 2), 16);
-    const g = parseInt(cleaned.slice(2, 4), 16);
-    const b = parseInt(cleaned.slice(4, 6), 16);
-    return { r, g, b };
+  const rgbMatch = trimmed.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (rgbMatch) {
+    return {
+      r: parseInt(rgbMatch[1], 10),
+      g: parseInt(rgbMatch[2], 10),
+      b: parseInt(rgbMatch[3], 10),
+    };
   }
   return null;
 }
@@ -32,7 +44,7 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
  * WCAG relative luminance (0–1). Higher = lighter background.
  */
 export function getRelativeLuminance(hex: string): number {
-  const rgb = hexToRgb(hex);
+  const rgb = parseColor(hex);
   if (!rgb) return 0.5; // fallback to mid
   const { r, g, b } = rgb;
   const toLinear = (c: number) => {
@@ -47,6 +59,14 @@ export function getRelativeLuminance(hex: string): number {
  */
 export function isLightBackground(hex: string): boolean {
   return getRelativeLuminance(hex) > 0.5;
+}
+
+/**
+ * Get badge text color - always auto contrast against badge background.
+ * Badge decouples from global text color to ensure readability.
+ */
+export function getBadgeTextColor(badgeBackgroundHex: string): string {
+  return getContrastingTextColor(badgeBackgroundHex, 'auto', undefined);
 }
 
 /**

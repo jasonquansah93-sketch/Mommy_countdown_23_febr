@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useProfile } from '../../context/ProfileContext';
 import { useDesign } from '../../context/DesignContext';
 import { getResolvedFontFamily } from '../../constants/fonts';
-import { getContrastingTextColor } from '../../utils/contrast';
+import { getContrastingTextColor, getBadgeTextColor } from '../../utils/contrast';
 import { usePremium } from '../../context/PremiumContext';
 import { getWeeksAndDays, getTimeUntilDueMs } from '../../utils/date';
 import GradientButton from './GradientButton';
@@ -61,9 +61,8 @@ export default function HeroCountdownCard({ onScrollToDetails }: Props) {
   const mode = design.textColorMode ?? 'auto';
   const customColor = design.customTextColor;
   const badgeBg = '#FFFFFF';
-  const contentBg = colors.background;
-  const badgeTextColor = getContrastingTextColor(badgeBg, mode, customColor);
-  const contentTextColor = getContrastingTextColor(contentBg, mode, customColor);
+  const badgeTextColor = getBadgeTextColor(badgeBg);
+  const contentTextColor = getContrastingTextColor(colors.background, mode, customColor);
 
   const handleShare = () => {
     const msg = `Only ${weeks} weeks and ${days} days until we meet our baby! 💕`;

@@ -283,19 +283,19 @@ export default function ColorsTab() {
         </View>
       )}
 
-      {/* 2. PRESET THEMES */}
-      <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>PRESET THEMES</Text>
-      <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
-        One-tap looks (Boy, Girl, Surprise, Basic)
-      </Text>
-      {presetThemes.map(renderThemeCard)}
-
-      {/* 3. COLOR THEMES */}
+      {/* 2. COLOR THEMES */}
       <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>COLOR THEMES</Text>
       <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
         Tap a theme to apply, tap again to customize shades
       </Text>
       {colorThemes.map(renderThemeCard)}
+
+      {/* 3. PRESET THEMES */}
+      <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>PRESET THEMES</Text>
+      <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
+        One-tap looks (Boy, Girl, Surprise, Basic)
+      </Text>
+      {presetThemes.map(renderThemeCard)}
 
       {/* Shade picker modal */}
       {selectedTheme && (
