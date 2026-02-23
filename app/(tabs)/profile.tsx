@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,59 +6,70 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
+  Image,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { useProfile } from '../../context/ProfileContext';
 import { useDesign } from '../../context/DesignContext';
 import { getWeeksAndDays, getDaysRemaining, formatDateLabel } from '../../utils/date';
+import { loadJSON, saveJSON } from '../../utils/storage';
+import { THEMES } from '../../constants/themes';
 
-// ─── Premium feature list ────────────────────────────────────────────────────
+// ─── Reminders persistence ───────────────────────────────────────────────────
+const REMINDERS_KEY = 'mommy_reminders';
+interface RemindersState {
+  weekly: boolean;
+  milestones: boolean;
+}
+
+// ─── Premium feature list (copy-only, no new colors) ─────────────────────────
 const PREMIUM_FEATURES = [
   {
     icon: 'water-outline',
-    color: '#E91E8C',
     title: 'Remove watermark from all shared memories',
     subtitle: 'Share your precious moments beautifully',
   },
   {
     icon: 'image-outline',
-    color: '#FF9800',
     title: 'Export images in high-resolution quality',
     subtitle: 'Perfect for printing and preserving',
   },
   {
     icon: 'gift-outline',
-    color: '#9C27B0',
     title: 'Exclusive memory stickers & frames',
     subtitle: 'Personalize your countdown journey',
   },
   {
     icon: 'sparkles-outline',
-    color: '#0298D1',
     title: 'Animated countdown cards',
     subtitle: 'Watch your journey come to life',
   },
   {
     icon: 'heart-outline',
-    color: '#E91E8C',
     title: 'Unlimited memories & milestones',
     subtitle: 'Capture every special moment',
   },
-];
+] as const;
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
-interface SettingsRowProps {
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+interface ActiveRowProps {
   iconName: keyof typeof Ionicons.glyphMap;
   iconBg: string;
   iconColor: string;
   label: string;
   value: string;
   isLast: boolean;
-  onPress?: () => void;
+  onPress: () => void;
 }
-function SettingsRow({ iconName, iconBg, iconColor, label, value, isLast, onPress }: SettingsRowProps) {
+function ActiveRow({ iconName, iconBg, iconColor, label, value, isLast, onPress }: ActiveRowProps) {
   return (
     <TouchableOpacity
       style={[styles.listRow, !isLast && styles.listRowBorder]}
@@ -77,6 +88,30 @@ function SettingsRow({ iconName, iconBg, iconColor, label, value, isLast, onPres
   );
 }
 
+interface DisabledRowProps {
+  iconName: keyof typeof Ionicons.glyphMap;
+  iconBg: string;
+  iconColor: string;
+  label: string;
+  value: string;
+  isLast: boolean;
+}
+function DisabledRow({ iconName, iconBg, iconColor, label, value, isLast }: DisabledRowProps) {
+  return (
+    <View style={[styles.listRow, !isLast && styles.listRowBorder]}>
+      <View style={[styles.rowIconCircle, { backgroundColor: iconBg }]}>
+        <Ionicons name={iconName} size={18} color={iconColor} />
+      </View>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <View style={styles.rowRight}>
+        {value ? <Text style={styles.rowValue}>{value}</Text> : null}
+        {/* Disabled chevron — dimmed to signal non-interactive */}
+        <Ionicons name="chevron-forward" size={16} color="#E0E0E0" style={{ marginLeft: 4, opacity: 0.4 }} />
+      </View>
+    </View>
+  );
+}
+
 interface ReminderRowProps {
   iconName: keyof typeof Ionicons.glyphMap;
   iconBg: string;
@@ -86,8 +121,14 @@ interface ReminderRowProps {
   value: boolean;
   onToggle: () => void;
   isLast: boolean;
+  accentColor: string;
 }
-function ReminderRow({ iconName, iconBg, iconColor, title, subtitle, value, onToggle, isLast }: ReminderRowProps) {
+function ReminderRow({
+  iconName, iconBg, iconColor,
+  title, subtitle,
+  value, onToggle, isLast,
+  accentColor,
+}: ReminderRowProps) {
   return (
     <View style={[styles.listRow, !isLast && styles.listRowBorder]}>
       <View style={[styles.rowIconCircle, { backgroundColor: iconBg }]}>
@@ -97,30 +138,74 @@ function ReminderRow({ iconName, iconBg, iconColor, title, subtitle, value, onTo
         <Text style={styles.reminderTitle}>{title}</Text>
         <Text style={styles.reminderSubtitle}>{subtitle}</Text>
       </View>
+      {/* Toggle color derives from theme accent */}
       <Switch
         value={value}
         onValueChange={onToggle}
-        trackColor={{ false: '#E0E0E0', true: '#FFBB80' }}
-        thumbColor={value ? '#FF9800' : '#FFFFFF'}
+        trackColor={{ false: '#E0E0E0', true: accentColor + 'AA' }}
+        thumbColor={value ? accentColor : '#FFFFFF'}
         ios_backgroundColor="#E0E0E0"
       />
     </View>
   );
 }
 
-// ─── Main screen ─────────────────────────────────────────────────────────────
+// ─── Main screen ──────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
-  const { profile } = useProfile();
-  const { colors } = useDesign();
+  const { profile, updateProfile } = useProfile();
+  const { colors, design } = useDesign();
+  const router = useRouter();
 
+  // ── Reminders — persisted ──────────────────────────────────────────────────
   const [remindersWeekly, setRemindersWeekly] = useState(true);
   const [remindersMilestones, setRemindersMilestones] = useState(true);
 
+  useEffect(() => {
+    loadJSON<RemindersState>(REMINDERS_KEY).then((saved) => {
+      if (saved) {
+        setRemindersWeekly(saved.weekly);
+        setRemindersMilestones(saved.milestones);
+      }
+    });
+  }, []);
+
+  const toggleWeekly = useCallback(() => {
+    setRemindersWeekly((prev) => {
+      const next = !prev;
+      saveJSON<RemindersState>(REMINDERS_KEY, { weekly: next, milestones: remindersMilestones });
+      return next;
+    });
+  }, [remindersMilestones]);
+
+  const toggleMilestones = useCallback(() => {
+    setRemindersMilestones((prev) => {
+      const next = !prev;
+      saveJSON<RemindersState>(REMINDERS_KEY, { weekly: remindersWeekly, milestones: next });
+      return next;
+    });
+  }, [remindersWeekly]);
+
+  // ── Baby name edit modal ───────────────────────────────────────────────────
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+
+  const openNameEdit = () => {
+    setNameInput(profile.name || '');
+    setIsEditingName(true);
+  };
+
+  const saveNameEdit = () => {
+    const trimmed = nameInput.trim();
+    if (trimmed) updateProfile({ name: trimmed });
+    setIsEditingName(false);
+  };
+
+  // ── Derived values — same utilities as Countdown ──────────────────────────
   const { weeks } = getWeeksAndDays(profile.dueDate);
   const daysLeft = getDaysRemaining(profile.dueDate);
-  const babyName = profile.name || 'Baby Smith';
+  const babyName = profile.name || 'Baby';
 
-  // Due date pill: "DUE OCT 24, 2025"
+  // Due date pill text: "DUE MAR 28, 2026" — read-only, derived from global dueDate
   const dueDatePillText = (() => {
     const d = new Date(profile.dueDate);
     if (isNaN(d.getTime())) return 'DUE DATE';
@@ -128,17 +213,18 @@ export default function ProfileScreen() {
     return `DUE ${month} ${d.getDate()}, ${d.getFullYear()}`;
   })();
 
-  // Due date row value: "Oct 24, 2025"
+  // Due date row value: "Mar 28, 2026" — read-only
   const dueDateRow = formatDateLabel(profile.dueDate);
 
-  // Gender for stats
-  const genderSymbol = profile.gender === 'boy' ? '♂' : profile.gender === 'girl' ? '♀' : '?';
+  // Gender stats
+  const genderSymbol =
+    profile.gender === 'boy' ? '♂' : profile.gender === 'girl' ? '♀' : '?';
   const genderLabel =
     profile.gender === 'boy' ? 'BOY' : profile.gender === 'girl' ? 'GIRL' : 'SURPRISE';
-  const genderColor =
-    profile.gender === 'boy' ? '#64B5F6' : profile.gender === 'girl' ? '#E91E8C' : '#C4A77D';
+  // Gender icon color follows theme, not hardcoded
+  const genderColor = colors.primary;
 
-  // Display format label
+  // Display format — read-only, derived from profile
   const displayFormatLabel = (() => {
     switch (profile.timerDisplayMode) {
       case 'hours': return 'Hours';
@@ -148,41 +234,73 @@ export default function ProfileScreen() {
     }
   })();
 
+  // Theme name — derived from design store (single source of truth)
+  const themeName =
+    THEMES.find((t) => t.id === design.themeId)?.name ?? 'Custom';
+
+  // Avatar image — same source as Design/Countdown background photo
+  const hasPhoto = design.backgroundPhoto != null;
+
+  // Row icon colors derived from theme
+  const pillBg = colors.primary;
+  const iconPrimary = colors.primary;
+  const iconPrimaryBg = colors.background;
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: '#F8F4EF' }]} edges={['top']}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Header ────────────────────────────────── */}
+        {/* ── Header ──────────────────────────────────────────────────────── */}
         <View style={styles.header}>
           <View>
             <Text style={styles.headerTitle}>Profile</Text>
             <Text style={styles.headerSubtitle}>Your baby &amp; preferences</Text>
           </View>
-          <TouchableOpacity style={[styles.editBtn, { borderColor: colors.accent }]}>
+          {/* Edit button — opens Baby Name edit only */}
+          <TouchableOpacity
+            style={[styles.editBtn, { borderColor: colors.accent }]}
+            onPress={openNameEdit}
+            activeOpacity={0.7}
+          >
             <Ionicons name="pencil" size={17} color={colors.primary} />
           </TouchableOpacity>
         </View>
 
-        {/* ── Profile Card ──────────────────────────── */}
+        {/* ── Profile Card ─────────────────────────────────────────────────── */}
         <View style={styles.profileCard}>
-          {/* Avatar */}
+          {/* Avatar — shows Design background photo if set */}
           <View style={styles.avatarWrapper}>
-            <View style={styles.avatarCircle}>
-              <Ionicons name="person" size={52} color="#D0D0D0" />
-            </View>
-            <TouchableOpacity style={[styles.cameraBtn, { backgroundColor: colors.primary }]}>
+            {hasPhoto ? (
+              <Image
+                source={{ uri: design.backgroundPhoto! }}
+                style={styles.avatarImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.avatarCircle}>
+                <Ionicons name="person" size={52} color="#D0D0D0" />
+              </View>
+            )}
+            {/* Camera badge — navigates to Design > Photo & Filters */}
+            <TouchableOpacity
+              style={[styles.cameraBtn, { backgroundColor: colors.primary }]}
+              onPress={() => router.push('/(tabs)/design')}
+              activeOpacity={0.8}
+            >
               <Ionicons name="camera" size={13} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
 
-          {/* Name */}
-          <Text style={styles.profileName}>{babyName}</Text>
+          {/* Name — tap to edit */}
+          <TouchableOpacity onPress={openNameEdit} activeOpacity={0.7}>
+            <Text style={styles.profileName}>{babyName}</Text>
+          </TouchableOpacity>
 
-          {/* Due date pill */}
-          <View style={styles.duePill}>
+          {/* Due date pill — color from theme, read-only */}
+          <View style={[styles.duePill, { backgroundColor: pillBg }]}>
             <Ionicons name="calendar-outline" size={11} color="#FFFFFF" style={{ marginRight: 5 }} />
             <Text style={styles.duePillText}>{dueDatePillText}</Text>
           </View>
@@ -209,61 +327,67 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Baby Details ──────────────────────────── */}
+        {/* ── Baby Details ─────────────────────────────────────────────────── */}
         <Text style={styles.sectionTitle}>Baby Details</Text>
         <View style={styles.listCard}>
-          <SettingsRow
+          {/* Baby Name — only editable row */}
+          <ActiveRow
             iconName="person-outline"
-            iconBg="#FFF0F5"
-            iconColor="#E91E8C"
+            iconBg={iconPrimaryBg}
+            iconColor={iconPrimary}
             label="Baby Name"
             value={babyName}
             isLast={false}
+            onPress={openNameEdit}
           />
-          <SettingsRow
+          {/* Due Date — read-only, no edit entry point here */}
+          <DisabledRow
             iconName="calendar-outline"
             iconBg="#FFF8F0"
-            iconColor="#FF9800"
+            iconColor="#AAAAAA"
             label="Due Date"
             value={dueDateRow}
             isLast={false}
           />
-          <SettingsRow
+          {/* Display Format — read-only */}
+          <DisabledRow
             iconName="time-outline"
             iconBg="#F0F8FF"
-            iconColor="#0298D1"
+            iconColor="#AAAAAA"
             label="Display Format"
             value={displayFormatLabel}
             isLast={true}
           />
         </View>
 
-        {/* ── Reminders ─────────────────────────────── */}
+        {/* ── Reminders ────────────────────────────────────────────────────── */}
         <Text style={styles.sectionTitle}>Reminders</Text>
         <View style={styles.listCard}>
           <ReminderRow
             iconName="notifications-outline"
-            iconBg="#FFF8F0"
-            iconColor="#FF9800"
+            iconBg={iconPrimaryBg}
+            iconColor={iconPrimary}
             title="Weekly Update"
             subtitle="New week notification"
             value={remindersWeekly}
-            onToggle={() => setRemindersWeekly((v) => !v)}
+            onToggle={toggleWeekly}
             isLast={false}
+            accentColor={colors.primary}
           />
           <ReminderRow
             iconName="star-outline"
-            iconBg="#FFFBF0"
-            iconColor="#FFC107"
+            iconBg={iconPrimaryBg}
+            iconColor={iconPrimary}
             title="Milestones"
-            subtitle="Special days & moments"
+            subtitle="Special days &amp; moments"
             value={remindersMilestones}
-            onToggle={() => setRemindersMilestones((v) => !v)}
+            onToggle={toggleMilestones}
             isLast={true}
+            accentColor={colors.primary}
           />
         </View>
 
-        {/* ── Premium ───────────────────────────────── */}
+        {/* ── Premium ──────────────────────────────────────────────────────── */}
         <View style={styles.premiumHeaderRow}>
           <Text style={styles.sectionTitle}>Premium</Text>
           <View style={[styles.plusBadge, { backgroundColor: colors.primary }]}>
@@ -272,15 +396,14 @@ export default function ProfileScreen() {
         </View>
 
         <LinearGradient
-          colors={['#FFFFFF', '#FFF5F9']}
+          colors={['#FFFFFF', colors.background]}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={styles.premiumCard}
         >
-          {/* Top row */}
           <View style={styles.premiumTopRow}>
-            <View style={[styles.premiumIconCircle, { backgroundColor: '#FFF0F5' }]}>
-              <Ionicons name="heart" size={22} color="#E91E8C" />
+            <View style={[styles.premiumIconCircle, { backgroundColor: iconPrimaryBg }]}>
+              <Ionicons name="heart" size={22} color={colors.primary} />
             </View>
             <View style={{ flex: 1, marginLeft: 14 }}>
               <Text style={styles.premiumCardTitle}>MommyCount Plus</Text>
@@ -288,11 +411,14 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Feature rows */}
           {PREMIUM_FEATURES.map((f, i) => (
             <View key={i} style={styles.featureRow}>
-              <View style={[styles.featureIconCircle, { backgroundColor: `${f.color}18` }]}>
-                <Ionicons name={f.icon as keyof typeof Ionicons.glyphMap} size={16} color={f.color} />
+              <View style={[styles.featureIconCircle, { backgroundColor: iconPrimaryBg }]}>
+                <Ionicons
+                  name={f.icon as keyof typeof Ionicons.glyphMap}
+                  size={16}
+                  color={colors.primary}
+                />
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={styles.featureTitle}>{f.title}</Text>
@@ -301,51 +427,58 @@ export default function ProfileScreen() {
             </View>
           ))}
 
-          {/* CTA */}
-          <TouchableOpacity style={[styles.ctaButton, { backgroundColor: colors.primary }]} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={[styles.ctaButton, { backgroundColor: colors.primary }]}
+            activeOpacity={0.85}
+          >
             <Text style={styles.ctaText}>Unlock Perfect Memories</Text>
           </TouchableOpacity>
           <Text style={styles.ctaNote}>One-time purchase • Lifetime access</Text>
         </LinearGradient>
 
-        {/* ── App Settings ──────────────────────────── */}
+        {/* ── App Settings ─────────────────────────────────────────────────── */}
         <Text style={styles.sectionTitle}>App Settings</Text>
         <View style={styles.listCard}>
-          <SettingsRow
+          <ActiveRow
             iconName="globe-outline"
             iconBg="#F0F8FF"
             iconColor="#0298D1"
             label="Language"
             value="English"
             isLast={false}
+            onPress={() => {}}
           />
-          <SettingsRow
+          {/* Theme — derived from design store */}
+          <ActiveRow
             iconName="color-palette-outline"
-            iconBg="#FFF0F5"
-            iconColor="#E91E8C"
+            iconBg={iconPrimaryBg}
+            iconColor={iconPrimary}
             label="Theme"
-            value="Soft Cream"
+            value={themeName}
             isLast={false}
+            onPress={() => router.push('/(tabs)/design')}
           />
-          <SettingsRow
+          <ActiveRow
             iconName="share-social-outline"
             iconBg="#F0FFF4"
             iconColor="#66BB6A"
             label="Share App"
             value=""
             isLast={false}
+            onPress={() => {}}
           />
-          <SettingsRow
+          <ActiveRow
             iconName="star-outline"
             iconBg="#FFFBF0"
             iconColor="#FFC107"
             label="Rate Us"
             value=""
             isLast={true}
+            onPress={() => {}}
           />
         </View>
 
-        {/* ── Footer ────────────────────────────────── */}
+        {/* ── Footer ───────────────────────────────────────────────────────── */}
         <View style={styles.footer}>
           <View style={styles.footerLinks}>
             <TouchableOpacity>
@@ -363,6 +496,42 @@ export default function ProfileScreen() {
           <Text style={styles.footerVersion}>Version 2.4.0 • Made with ♡ for moms</Text>
         </View>
       </ScrollView>
+
+      {/* ── Baby Name Edit Modal ──────────────────────────────────────────── */}
+      <Modal visible={isEditingName} transparent animationType="fade">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setIsEditingName(false)}
+          />
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit Baby Name</Text>
+            <TextInput
+              style={[styles.nameInput, { borderColor: colors.accent }]}
+              value={nameInput}
+              onChangeText={setNameInput}
+              placeholder="Enter baby name"
+              placeholderTextColor="#AAAAAA"
+              autoFocus
+              selectTextOnFocus
+              returnKeyType="done"
+              onSubmitEditing={saveNameEdit}
+              maxLength={40}
+            />
+            <TouchableOpacity
+              style={[styles.modalDoneBtn, { backgroundColor: colors.primary }]}
+              onPress={saveNameEdit}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.modalDoneBtnText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -378,10 +547,7 @@ const CARD_SHADOW = {
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F8F4EF',
-  },
+  safeArea: { flex: 1 },
   scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 16,
@@ -444,6 +610,13 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#EBEBEB',
   },
+  avatarImage: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 2,
+    borderColor: '#EBEBEB',
+  },
   cameraBtn: {
     position: 'absolute',
     bottom: 2,
@@ -465,7 +638,6 @@ const styles = StyleSheet.create({
   duePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF6B35',
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
@@ -523,10 +695,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1a1a1a',
     marginBottom: 10,
-    marginTop: 0,
   },
 
-  // List card (shared by Baby Details, Reminders, App Settings)
+  // List card
   listCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: CARD_RADIUS,
@@ -568,9 +739,7 @@ const styles = StyleSheet.create({
   },
 
   // Reminder rows
-  reminderText: {
-    flex: 1,
-  },
+  reminderText: { flex: 1 },
   reminderTitle: {
     fontSize: 15,
     fontWeight: '600',
@@ -582,7 +751,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
 
-  // Premium header
+  // Premium
   premiumHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -600,8 +769,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-
-  // Premium card
   premiumCard: {
     borderRadius: CARD_RADIUS,
     padding: 18,
@@ -695,5 +862,54 @@ const styles = StyleSheet.create({
   footerVersion: {
     fontSize: 12,
     color: '#BBBBBB',
+  },
+
+  // Name edit modal
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    width: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+    textAlign: 'center',
+    color: '#1a1a1a',
+  },
+  nameInput: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 17,
+    color: '#1a1a1a',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalDoneBtn: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalDoneBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
