@@ -3,9 +3,13 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useDesign } from '../../context/DesignContext';
 import { DESIGN_PRESETS } from '../../constants/presets';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { usePremium } from '../../context/PremiumContext';
 
 export default function PresetsTab() {
   const { design, setPreset, colors } = useDesign();
+  const { isPremium } = usePremium();
+  const router = useRouter();
 
   return (
     <View style={styles.container}>
@@ -17,6 +21,7 @@ export default function PresetsTab() {
       <View style={styles.grid}>
         {DESIGN_PRESETS.map((preset) => {
           const isSelected = design.presetId === preset.id;
+          const isLocked = preset.premium && !isPremium;
           return (
             <TouchableOpacity
               key={preset.id}
@@ -26,12 +31,17 @@ export default function PresetsTab() {
                   borderColor: isSelected ? colors.primary : colors.accent,
                   borderWidth: isSelected ? 2 : 1.5,
                   backgroundColor: colors.surface,
+                  opacity: isLocked ? 0.7 : 1,
                 },
               ]}
               activeOpacity={0.7}
-              onPress={() =>
-                setPreset(preset.id, preset.themeId, preset.fontFamily, preset.filter, preset.hideGenderLabel)
-              }
+              onPress={() => {
+                if (isLocked) {
+                  router.push('/modal/paywall');
+                  return;
+                }
+                setPreset(preset.id, preset.themeId, preset.fontFamily, preset.filter, preset.hideGenderLabel);
+              }}
             >
               <View style={styles.presetContent}>
                 <Text style={[styles.presetName, { color: colors.text }]} numberOfLines={2}>
@@ -41,7 +51,9 @@ export default function PresetsTab() {
                   {preset.description}
                 </Text>
               </View>
-              {isSelected ? (
+              {isLocked ? (
+                <Ionicons name="lock-closed" size={16} color={colors.textSecondary} style={styles.checkIcon} />
+              ) : isSelected ? (
                 <Ionicons name="checkmark-circle" size={18} color={colors.primary} style={styles.checkIcon} />
               ) : null}
             </TouchableOpacity>

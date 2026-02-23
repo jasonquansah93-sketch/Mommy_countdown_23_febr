@@ -14,8 +14,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { useProfile } from '../../context/ProfileContext';
 import { useDesign } from '../../context/DesignContext';
+import { usePremium } from '../../context/PremiumContext';
 import { getDaysRemaining, formatDateLabel } from '../../utils/date';
 import { loadJSON, saveJSON } from '../../utils/storage';
 
@@ -151,6 +153,8 @@ function ReminderRow({
 export default function ProfileScreen() {
   const { profile, updateProfile } = useProfile();
   const { colors } = useDesign();
+  const { isPremium, togglePremium } = usePremium();
+  const router = useRouter();
 
   // ── Reminders — persisted ──────────────────────────────────────────────────
   const [remindersWeekly, setRemindersWeekly] = useState(true);
@@ -340,51 +344,77 @@ export default function ProfileScreen() {
         {/* ── Premium ──────────────────────────────────────────────────────── */}
         <View style={styles.premiumHeaderRow}>
           <Text style={styles.sectionTitle}>Premium</Text>
-          <View style={[styles.plusBadge, { backgroundColor: colors.primary }]}>
-            <Text style={styles.plusBadgeText}>PLUS</Text>
+          <View style={[styles.plusBadge, { backgroundColor: isPremium ? '#34C759' : colors.primary }]}>
+            <Text style={styles.plusBadgeText}>{isPremium ? 'ACTIVE' : 'PLUS'}</Text>
           </View>
         </View>
 
-        <LinearGradient
-          colors={['#FFFFFF', colors.background]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.premiumCard}
-        >
-          <View style={styles.premiumTopRow}>
-            <View style={[styles.premiumIconCircle, { backgroundColor: iconPrimaryBg }]}>
-              <Ionicons name="heart" size={22} color={colors.primary} />
+        {isPremium ? (
+          /* ── Active premium state ── */
+          <View style={[styles.premiumActiveCard, { backgroundColor: '#FFFFFF' }]}>
+            <View style={styles.premiumTopRow}>
+              <View style={[styles.premiumIconCircle, { backgroundColor: '#F0FFF4' }]}>
+                <Ionicons name="checkmark-circle" size={24} color="#34C759" />
+              </View>
+              <View style={{ flex: 1, marginLeft: 14 }}>
+                <Text style={styles.premiumCardTitle}>MommyCount Plus Active</Text>
+                <Text style={styles.premiumCardSubtitle}>All features unlocked</Text>
+              </View>
             </View>
-            <View style={{ flex: 1, marginLeft: 14 }}>
-              <Text style={styles.premiumCardTitle}>MommyCount Plus</Text>
-              <Text style={styles.premiumCardSubtitle}>Make every memory perfect</Text>
-            </View>
+            <TouchableOpacity
+              style={[styles.manageBtn, { borderColor: colors.accent }]}
+              activeOpacity={0.7}
+              onPress={togglePremium}
+            >
+              <Text style={[styles.manageBtnText, { color: colors.textSecondary }]}>
+                Manage Subscription
+              </Text>
+            </TouchableOpacity>
           </View>
-
-          {PREMIUM_FEATURES.map((f, i) => (
-            <View key={i} style={styles.featureRow}>
-              <View style={[styles.featureIconCircle, { backgroundColor: iconPrimaryBg }]}>
-                <Ionicons
-                  name={f.icon as keyof typeof Ionicons.glyphMap}
-                  size={16}
-                  color={colors.primary}
-                />
+        ) : (
+          /* ── Upgrade CTA ── */
+          <LinearGradient
+            colors={['#FFFFFF', colors.background]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.premiumCard}
+          >
+            <View style={styles.premiumTopRow}>
+              <View style={[styles.premiumIconCircle, { backgroundColor: iconPrimaryBg }]}>
+                <Ionicons name="heart" size={22} color={colors.primary} />
               </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.featureTitle}>{f.title}</Text>
-                <Text style={styles.featureSubtitle}>{f.subtitle}</Text>
+              <View style={{ flex: 1, marginLeft: 14 }}>
+                <Text style={styles.premiumCardTitle}>MommyCount Plus</Text>
+                <Text style={styles.premiumCardSubtitle}>Make every memory perfect</Text>
               </View>
             </View>
-          ))}
 
-          <TouchableOpacity
-            style={[styles.ctaButton, { backgroundColor: colors.primary }]}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.ctaText}>Unlock Perfect Memories</Text>
-          </TouchableOpacity>
-          <Text style={styles.ctaNote}>One-time purchase • Lifetime access</Text>
-        </LinearGradient>
+            {PREMIUM_FEATURES.map((f, i) => (
+              <View key={i} style={styles.featureRow}>
+                <View style={[styles.featureIconCircle, { backgroundColor: iconPrimaryBg }]}>
+                  <Ionicons
+                    name={f.icon as keyof typeof Ionicons.glyphMap}
+                    size={16}
+                    color={colors.primary}
+                  />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.featureTitle}>{f.title}</Text>
+                  <Text style={styles.featureSubtitle}>{f.subtitle}</Text>
+                </View>
+              </View>
+            ))}
+
+            <TouchableOpacity
+              style={[styles.ctaButton, { backgroundColor: colors.primary }]}
+              activeOpacity={0.85}
+              onPress={() => router.push('/modal/paywall')}
+            >
+              <Text style={styles.ctaText}>Unlock Perfect Memories</Text>
+            </TouchableOpacity>
+            <Text style={styles.ctaNote}>$4.99 / year  •  Cancel anytime</Text>
+          </LinearGradient>
+        )}
 
         {/* ── App Settings ─────────────────────────────────────────────────── */}
         <Text style={styles.sectionTitle}>App Settings</Text>
@@ -397,6 +427,21 @@ export default function ProfileScreen() {
             value="English"
             isLast={false}
             onPress={() => {}}
+          />
+          <ActiveRow
+            iconName="moon-outline"
+            iconBg="#F5F0FF"
+            iconColor="#7B5EA7"
+            label="Ambient Mode"
+            value={isPremium ? '' : '✦ Plus'}
+            isLast={false}
+            onPress={() => {
+              if (isPremium) {
+                router.push('/modal/ambient');
+              } else {
+                router.push('/modal/paywall');
+              }
+            }}
           />
           <ActiveRow
             iconName="share-social-outline"
@@ -433,6 +478,14 @@ export default function ProfileScreen() {
               <Text style={styles.footerLink}>Support</Text>
             </TouchableOpacity>
           </View>
+          {!isPremium && (
+            <TouchableOpacity
+              onPress={() => router.push('/modal/paywall')}
+              style={{ marginBottom: 6 }}
+            >
+              <Text style={styles.restoreLink}>Restore Purchase</Text>
+            </TouchableOpacity>
+          )}
           <Text style={styles.footerVersion}>Version 2.4.0 • Made with ♡ for moms</Text>
         </View>
       </ScrollView>
@@ -745,6 +798,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     color: '#AAAAAA',
+  },
+  premiumActiveCard: {
+    borderRadius: CARD_RADIUS,
+    padding: 18,
+    marginBottom: 24,
+    ...CARD_SHADOW,
+  },
+  manageBtn: {
+    marginTop: 12,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  manageBtnText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  restoreLink: {
+    fontSize: 12,
+    color: '#AAAAAA',
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+    marginBottom: 4,
   },
 
   // Footer

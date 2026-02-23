@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,9 +14,13 @@ import { useDesign } from '../../context/DesignContext';
 import { useRouter } from 'expo-router';
 import { usePregnancy } from '../../context/PregnancyContext';
 import { useProfile } from '../../context/ProfileContext';
+import { usePremium } from '../../context/PremiumContext';
 import { Moment, Milestone } from '../../types/pregnancy';
 import { formatDateLabel, getDaysRemaining, getMilestoneDateState } from '../../utils/date';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { loadJSON, saveJSON } from '../../utils/storage';
+
+const PAYWALL_100_KEY = 'mommy_paywall_100shown';
 
 export default function JourneyScreen() {
   const { colors } = useDesign();
@@ -32,7 +36,9 @@ export default function JourneyScreen() {
     getManualMoments,
   } = usePregnancy();
   const { profile, updateProfile } = useProfile();
+  const { isPremium } = usePremium();
   const insets = useSafeAreaInsets();
+  const paywall100Triggered = useRef(false);
 
   const hasMultiplePregnancies = pregnancies.length > 1;
   const activePregnancy = pregnancies.find((p) => p.status === 'active');
@@ -47,6 +53,19 @@ export default function JourneyScreen() {
       archiveCurrentPregnancy();
     }
   }, [daysRemaining, activePregnancy, profile.countdownStarted, archiveCurrentPregnancy]);
+
+  // 100-days-to-go paywall trigger — fires once per user lifetime
+  useEffect(() => {
+    if (isPremium || paywall100Triggered.current) return;
+    if (daysRemaining !== 100) return;
+    loadJSON<boolean>(PAYWALL_100_KEY).then((shown) => {
+      if (!shown) {
+        paywall100Triggered.current = true;
+        saveJSON(PAYWALL_100_KEY, true);
+        router.push('/modal/paywall');
+      }
+    });
+  }, [daysRemaining, isPremium]);
 
   /** RENDER FIREWALL: Your Moments = ONLY manual entries. Never milestones, never milestone-origin moments. */
   const manualMoments = getManualMoments();

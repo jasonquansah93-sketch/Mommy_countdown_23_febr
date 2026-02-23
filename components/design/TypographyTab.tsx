@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDesign } from '../../context/DesignContext';
 import { usePremium } from '../../context/PremiumContext';
 import { PRIMARY_FONTS, SCRIPT_FONTS, ELEGANT_FONTS } from '../../constants/presets';
+import { useRouter } from 'expo-router';
 
 interface FontDef {
   name: string;
@@ -92,13 +93,17 @@ function FontSection({
 export default function TypographyTab() {
   const { design, setFont, colors } = useDesign();
   const { isPremium } = usePremium();
+  const router = useRouter();
 
   const handleSelect = useCallback(
     (name: string, premium: boolean) => {
-      if (premium && !isPremium) return;
+      if (premium && !isPremium) {
+        router.push('/modal/paywall');
+        return;
+      }
       setFont(name);
     },
-    [setFont, isPremium]
+    [setFont, isPremium, router]
   );
 
   return (

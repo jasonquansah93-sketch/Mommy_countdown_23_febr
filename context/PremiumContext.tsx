@@ -3,6 +3,8 @@ import { loadJSON, saveJSON } from '../utils/storage';
 
 const STORAGE_KEY = 'mommy_premium';
 
+export const FREE_MOMENT_LIMIT = 5;
+
 interface PremiumContextType {
   isPremium: boolean;
   togglePremium: () => void;

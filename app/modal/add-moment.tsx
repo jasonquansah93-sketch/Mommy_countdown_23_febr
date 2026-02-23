@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,21 @@ import {
 import { useRouter } from 'expo-router';
 import { usePregnancy } from '../../context/PregnancyContext';
 import { useDesign } from '../../context/DesignContext';
+import { usePremium, FREE_MOMENT_LIMIT } from '../../context/PremiumContext';
 import { pickImage, takePhoto } from '../../utils/image';
 
 export default function AddMomentModal() {
   const router = useRouter();
-  const { addMoment } = usePregnancy();
+  const { addMoment, getManualMoments } = usePregnancy();
   const { colors } = useDesign();
+  const { isPremium } = usePremium();
+
+  // Gate: redirect to paywall if free limit reached
+  useEffect(() => {
+    if (!isPremium && getManualMoments().length >= FREE_MOMENT_LIMIT) {
+      router.replace('/modal/paywall');
+    }
+  }, []);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [text, setText] = useState('');
 

@@ -46,6 +46,14 @@ export default function RootLayout() {
           name="modal/all-moments"
           options={{ presentation: 'modal', headerShown: true, title: 'All Moments' }}
         />
+        <Stack.Screen
+          name="modal/paywall"
+          options={{ presentation: 'fullScreenModal', headerShown: false }}
+        />
+        <Stack.Screen
+          name="modal/ambient"
+          options={{ presentation: 'fullScreenModal', headerShown: false }}
+        />
       </Stack>
     </AppProvider>
   );

@@ -41,6 +41,36 @@ export const DESIGN_PRESETS: DesignPreset[] = [
     premium: false,
     hideGenderLabel: false,
   },
+  {
+    id: 'bloom',
+    name: 'Bloom',
+    description: 'Warm blush, dreamy script, soft pastel glow',
+    themeId: 'girl',
+    fontFamily: 'Dancing Script',
+    filter: 'soft',
+    premium: true,
+    hideGenderLabel: false,
+  },
+  {
+    id: 'moon',
+    name: 'Moon',
+    description: 'Midnight blue, silver text, celestial calm',
+    themeId: 'boy',
+    fontFamily: 'Cormorant Garamond',
+    filter: 'neutral',
+    premium: true,
+    hideGenderLabel: false,
+  },
+  {
+    id: 'luxe',
+    name: 'Luxe',
+    description: 'Deep plum, bold editorial, timeless elegance',
+    themeId: 'surprise',
+    fontFamily: 'Playfair Display',
+    filter: 'warm',
+    premium: true,
+    hideGenderLabel: false,
+  },
 ];
 
 export const PRIMARY_FONTS = [
